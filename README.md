@@ -1,4 +1,4 @@
-# Artistry — Multi-Vendor Catalogue Marketplace Platform
+# __Kala__ — Multi-Vendor Catalogue Marketplace Platform
 
 A narrative-driven marketplace where independent creators (**Artists**) sell handcrafted products by telling the story behind them. Buyers can follow Artists, browse **Stories** (presentation-style catalogues), and place orders.
 
