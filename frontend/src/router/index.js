@@ -19,6 +19,13 @@ import BuyerInsight from '../views/buyer/Insight.vue'
 import BuyerCheckout from '../views/buyer/Checkout.vue'
 import BuyerArtist from '../views/buyer/Artist.vue'
 
+//Artist views
+import ArtistDashboard from '../views/artist/Dashboards.vue'
+import ArtistCampaign from '../views/artist/Campaigns.vue'
+import ArtistNewCampaign from '../views/artist/NewCampaign.vue'
+import ArtistProducts from '../views/artist/Products.vue'
+import ArtistSendOuts from '../views/artist/SendOut.vue'
+
 const routes = [
   // Admin routes
   { path: '/admin/dashboard',    component: AdminDashboard },
@@ -39,8 +46,15 @@ const routes = [
   { path: '/buyer/artist/:id',   component: BuyerArtist },
   { path: '/buyer/checkout',     component: BuyerCheckout },
   
+  // Artist routes
+  { path: '/artist/dashboard',    component: ArtistDashboard },
+  { path: '/artist/campaigns',     component: ArtistCampaign  },
+  { path: '/artist/newcampaigns',     component: ArtistNewCampaign  },
+  { path: '/artist/products',     component: ArtistProducts  },
+  { path: '/artist/sendouts',     component: ArtistSendOuts  },
+
   // Default redirect
-  { path: '/:pathMatch(.*)*', redirect: '/buyer/dashboard' },
+ // { path: '/:pathMatch(.*)*', redirect: '/buyer/dashboard' },
 ]
 
 const router = createRouter({
