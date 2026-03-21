@@ -18,6 +18,8 @@ import BuyerProductDetails from '../views/buyer/ProductDetails.vue'
 import BuyerInsight from '../views/buyer/Insight.vue'
 import BuyerCheckout from '../views/buyer/Checkout.vue'
 import BuyerArtist from '../views/buyer/Artist.vue'
+import BuyerFollowing from '../views/buyer/Following.vue'
+import BuyerProfile from '../views/buyer/Profile.vue'
 
 const routes = [
   // Admin routes
@@ -37,6 +39,8 @@ const routes = [
   { path: '/buyer/product/:id',  component: BuyerProductDetails },
   { path: '/buyer/insight/:id',  component: BuyerInsight },
   { path: '/buyer/artist/:id',   component: BuyerArtist },
+  { path: '/buyer/following',    component: BuyerFollowing },
+  { path: '/buyer/profile',      component: BuyerProfile },
   { path: '/buyer/checkout',     component: BuyerCheckout },
   
   // Default redirect

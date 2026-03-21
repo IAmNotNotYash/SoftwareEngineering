@@ -157,3 +157,36 @@ export const getArtistDetails = async (id) => {
     }, 400)
   })
 }
+
+export const getFollowedArtists = async () => {
+  await new Promise((resolve) => setTimeout(resolve, 300))
+  // Mock data representing artists the buyer is currently following
+  return [
+    { id: 1, name: "Luna Ceramics", category: "Ceramics", followers: "4.1k", avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=200" },
+    { id: 2, name: "Mihir Desai", category: "Abstract Art", followers: "12k", avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200" },
+    { id: 3, name: "Earth Tones", category: "Home Goods", followers: "3.2k", avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200" }
+  ]
+}
+
+export const getBuyerProfile = async () => {
+  await new Promise((resolve) => setTimeout(resolve, 300))
+  return {
+    id: "USR-089",
+    name: "Alex Reed",
+    email: "alex.reed@example.com",
+    phone: "+91 98765 43210",
+    joinDate: "January 14, 2026",
+    shipping: {
+      address: "42 Banyan Tree Avenue, Sector 5",
+      city: "Bengaluru",
+      state: "Karnataka",
+      zip: "560001",
+      country: "India"
+    },
+    payment: {
+      cardType: "Visa",
+      last4: "4242",
+      expiry: "12/28"
+    }
+  }
+}
