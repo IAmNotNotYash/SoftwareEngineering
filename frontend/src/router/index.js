@@ -1,5 +1,10 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
+// Public views
+import HomePage from '../views/homepage/Home.vue'
+import LoginPage from '../views/auth/Login.vue'
+import RegisterPage from '../views/auth/Register.vue'
+
 // Admin views
 import AdminDashboard from '../views/admin/Dashboard.vue'
 import AdminVerification from '../views/admin/Verification.vue'
@@ -20,6 +25,11 @@ import BuyerCheckout from '../views/buyer/Checkout.vue'
 import BuyerArtist from '../views/buyer/Artist.vue'
 
 const routes = [
+  // Public routes
+  { path: '/',                   component: HomePage },
+  { path: '/auth/login',         component: LoginPage },
+  { path: '/auth/register',      component: RegisterPage },
+
   // Admin routes
   { path: '/admin/dashboard',    component: AdminDashboard },
   { path: '/admin/verification', component: AdminVerification },
@@ -40,7 +50,7 @@ const routes = [
   { path: '/buyer/checkout',     component: BuyerCheckout },
   
   // Default redirect
-  { path: '/:pathMatch(.*)*', redirect: '/buyer/dashboard' },
+  { path: '/:pathMatch(.*)*', redirect: '/' },
 ]
 
 const router = createRouter({
