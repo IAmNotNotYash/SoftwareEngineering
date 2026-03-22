@@ -1,27 +1,35 @@
 <template>
   <nav class="navbar">
     <div class="navbar-logo">
-      <RouterLink to="/buyer/dashboard"><i>Kala</i> <span class="badge">BUYER</span></RouterLink>
+      <RouterLink to="/buyer/dashboard">
+        <img src="../assets/logo1.png" alt="Kala Logo" class="logo-img" v-if="hasLogo" @error="hasLogo = false" />
+        
+        <span class="brand-text">Kala</span>
+      </RouterLink>
     </div>
     <div class="navbar-links">
       <RouterLink to="/buyer/dashboard" active-class="router-link-active">Dashboard</RouterLink>
       <RouterLink to="/buyer/products" active-class="router-link-active">Products</RouterLink>
+      <RouterLink to="/buyer/following" active-class="router-link-active">Following</RouterLink>
       <RouterLink to="/buyer/orders" active-class="router-link-active">Orders</RouterLink>
       <RouterLink to="/buyer/cart" active-class="router-link-active" class="cart-link">
         Cart <span class="cart-count" v-if="cartTotalItems > 0">{{ cartTotalItems }}</span>
       </RouterLink>
+      <RouterLink to="/buyer/profile" active-class="router-link-active" class="profile-link">Profile</RouterLink>
       <a href="#" class="logout">Logout</a>
     </div>
   </nav>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { cartState } from '../store/cart.js'
 
 const cartTotalItems = computed(() => {
   return cartState.items.reduce((sum, item) => sum + item.quantity, 0)
 })
+
+const hasLogo = ref(true)
 </script>
 
 <style scoped>
@@ -46,8 +54,19 @@ const cartTotalItems = computed(() => {
   letter-spacing: 0.5px;
   text-decoration: none;
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 8px;
+}
+
+.logo-img {
+  height: 28px;
+  width: auto;
+  border-radius: 4px; /* Soften edges if the logo background is solid */
+  object-fit: contain;
+}
+
+.brand-text {
+  font-style: italic;
 }
 
 .badge {
