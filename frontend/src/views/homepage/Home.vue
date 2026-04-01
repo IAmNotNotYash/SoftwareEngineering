@@ -1,7 +1,10 @@
 <template>
   <div class="home-page">
     <nav class="topbar">
-      <RouterLink to="/" class="brand-mark">Kala</RouterLink>
+      <RouterLink to="/" class="brand-mark">
+        <img src="../../assets/logo1.png" alt="Kala" class="nav-logo" />
+        Kala
+      </RouterLink>
       <RouterLink to="/auth/login" class="signin-btn">Sign In</RouterLink>
     </nav>
 
@@ -19,25 +22,23 @@
       </div>
     </header>
 
-    <main>
+    <main class="page-container">
       <section id="artists" class="content-section">
         <div class="section-heading">
           <h2>Featured Artists</h2>
           <p>Makers who pour their soul into every creation.</p>
         </div>
 
-        <div class="artist-grid">
-          <article v-for="artist in artists" :key="artist.name" class="artist-card">
-            <div class="artist-top">
-              <div class="artist-avatar"></div>
-              <div>
-                <h3>{{ artist.name }}</h3>
-                <p class="artist-tagline">{{ artist.tagline }}</p>
-              </div>
+        <div class="artists-grid">
+          <div v-for="artist in artists" :key="artist.name" class="artist-card">
+            <div class="artist-avatar" :style="{ backgroundImage: `url(${artist.avatar})` }"></div>
+            <div class="artist-info">
+              <div class="artist-name">{{ artist.name }}</div>
+              <div class="artist-category">{{ artist.category }} • {{ artist.followers }} Followers</div>
+              <p class="artist-tagline-text">{{ artist.tagline }}</p>
             </div>
-            <p class="artist-copy">{{ artist.copy }}</p>
-            <span class="artist-followers">{{ artist.followers }}</span>
-          </article>
+            <RouterLink to="/auth/register" class="follow-btn">Discover More</RouterLink>
+          </div>
         </div>
       </section>
 
@@ -47,21 +48,17 @@
           <p>Discover the craft behind the product.</p>
         </div>
 
-        <div class="story-grid">
-          <article v-for="story in stories" :key="story.title" class="story-card">
-            <div class="story-cover">Story Cover</div>
-            <div class="story-body">
-              <h3>{{ story.title }}</h3>
-              <p>{{ story.meta }}</p>
+        <div class="stories-grid">
+          <div v-for="story in stories" :key="story.title" class="story-card" :style="{ backgroundImage: `url(${story.cover})` }">
+            <div class="story-overlay">
+              <div class="story-date">{{ story.date }}</div>
+              <div class="story-title">{{ story.title }}</div>
+              <div class="story-artist">by <span>{{ story.artist }}</span></div>
+              <RouterLink to="/auth/register" class="view-story-btn">Read Story</RouterLink>
             </div>
-          </article>
+          </div>
         </div>
       </section>
-
-      <footer class="page-footer">
-        <span class="footer-brand">Kala</span>
-        <span class="footer-copy">© 2025 Kala. Crafted with intention.</span>
-      </footer>
     </main>
   </div>
 </template>
@@ -70,36 +67,45 @@
 const artists = [
   {
     name: 'Nila Handlooms',
+    category: 'Textiles',
     tagline: 'Weaving stories into every thread',
-    copy: 'Nila Handlooms is a third-generation textile studio based in Jaipur,...',
-    followers: '1,240 followers',
+    followers: '1,240',
+    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=400'
   },
   {
     name: 'Clay & Co.',
+    category: 'Ceramics',
     tagline: 'Earth, water, fire — shaped by hand',
-    copy: 'Clay & Co. is a ceramics studio in Pondicherry creating functional pottery...',
-    followers: '890 followers',
+    followers: '890',
+    avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=400'
   },
   {
     name: 'The Ink Press',
+    category: 'Printmaking',
     tagline: 'Block-printed with intention',
-    copy: 'The Ink Press revives the ancient art of block printing from our workshop in...',
-    followers: '2,100 followers',
+    followers: '2,100',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=400'
   },
 ]
 
 const stories = [
   {
     title: 'The Art of Jamdani Weaving',
-    meta: 'by Nila Handlooms · 5 slides',
+    artist: 'Nila Handlooms',
+    date: '2 Days Ago',
+    cover: 'https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&fit=crop&q=80&w=800'
   },
   {
     title: 'Indigo: From Plant to Fabric',
-    meta: 'by Nila Handlooms · 5 slides',
+    artist: 'Nila Handlooms',
+    date: '1 Week Ago',
+    cover: 'https://images.unsplash.com/photo-1541961017774-22349e4a1262?auto=format&fit=crop&q=80&w=800'
   },
   {
     title: 'From Earth to Table',
-    meta: 'by Clay & Co. · 6 slides',
+    artist: 'Clay & Co.',
+    date: '2 Weeks Ago',
+    cover: 'https://images.unsplash.com/photo-1620189507195-68309c04c4d0?auto=format&fit=crop&q=80&w=800'
   },
 ]
 </script>
@@ -107,7 +113,7 @@ const stories = [
 <style scoped>
 .home-page {
   min-height: 100vh;
-  background: #f8f6f2;
+  font-family: 'DM Sans', sans-serif;
 }
 
 .topbar {
@@ -117,17 +123,31 @@ const stories = [
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 24px;
-  background: rgba(255, 255, 255, 0.95);
-  border-bottom: 1px solid #ddd6cd;
+  padding: 0 60px;
+  height: 72px;
+  background: var(--color-nav-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(232, 224, 216, 0.4);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.03);
+  transition: all 0.3s ease;
 }
 
 .brand-mark {
-  font-family: var(--font-heading);
-  font-size: 30px;
-  font-weight: 600;
-  color: var(--color-primary);
-  font-style: italic;
+  font-family: 'Playfair Display', serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: #C4622D;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-logo {
+  height: 28px;
+  width: auto;
+  object-fit: contain;
 }
 
 .signin-btn,
@@ -136,45 +156,57 @@ const stories = [
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 116px;
-  height: 46px;
-  padding: 0 22px;
-  border-radius: 10px;
+  padding: 10px 24px;
+  border-radius: 8px;
   font-size: 15px;
   font-weight: 600;
   transition: all 0.2s ease;
+  text-decoration: none;
 }
 
-.signin-btn,
-.primary-btn {
-  background: var(--color-primary);
-  color: var(--color-text-light);
-  border: 1px solid var(--color-primary);
+.signin-btn {
+  background: #ffffff;
+  color: #1A1A1A;
+  border: 1px solid #ddd;
 }
 
-.signin-btn:hover,
-.primary-btn:hover {
-  background: var(--color-primary-hover);
-  color: var(--color-text-light);
+.signin-btn:hover {
+  border-color: #C4622D;
+  color: #C4622D;
 }
 
 .secondary-btn {
-  background: #ffffff;
-  color: var(--color-text-dark);
-  border: 1px solid #ddd6cd;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(4px);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.5);
 }
 
 .secondary-btn:hover {
-  color: var(--color-primary);
-  border-color: var(--color-primary);
+  background: #ffffff;
+  color: #1A1A1A;
+  border-color: #ffffff;
+}
+
+.primary-btn {
+  background: #C4622D;
+  color: white;
+  border: 1px solid #C4622D;
+}
+
+.primary-btn:hover {
+  background: #a85427;
 }
 
 .hero-section {
-  min-height: 76vh;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 52px 24px 124px;
+  padding: 120px 24px 140px;
+  background-image: linear-gradient(to right, rgba(20,20,20,0.7) 0%, rgba(20,20,20,0.4) 100%), url('https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&fit=crop&q=80&w=1920');
+  background-size: cover;
+  background-position: center;
+  border-bottom: 1px solid #e8e0d8;
 }
 
 .hero-inner {
@@ -183,191 +215,212 @@ const stories = [
 }
 
 .hero-title {
-  margin: 0 0 28px;
-  font-size: clamp(72px, 9vw, 96px);
-  line-height: 0.96;
-  letter-spacing: -0.04em;
-  color: #151515;
+  margin: 0 0 24px;
+  font-family: 'Playfair Display', serif;
+  font-size: 72px;
+  line-height: 1.1;
+  color: #ffffff;
 }
 
 .hero-text {
   margin: 0 auto;
-  max-width: 980px;
-  font-size: 25px;
-  line-height: 1.45;
-  color: #5f6673;
+  max-width: 800px;
+  font-size: 20px;
+  line-height: 1.6;
+  color: #e0e0e0;
 }
 
 .hero-actions {
   display: flex;
   justify-content: center;
-  gap: 18px;
-  flex-wrap: wrap;
-  margin-top: 36px;
+  gap: 16px;
+  margin-top: 40px;
+}
+
+.page-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 60px 40px;
 }
 
 .content-section {
-  padding: 34px 20px 120px;
-  border-top: 1px solid #ddd6cd;
-}
-
-.stories-section {
-  padding-bottom: 88px;
+  margin-bottom: 80px;
 }
 
 .section-heading {
-  margin-bottom: 48px;
+  margin-bottom: 40px;
+  text-align: center;
 }
 
 .section-heading h2 {
-  margin: 0 0 12px;
-  font-size: clamp(44px, 5vw, 64px);
-  line-height: 1;
-  color: #111111;
+  font-family: 'Playfair Display', serif;
+  font-size: 40px;
+  color: #000;
+  margin-bottom: 12px;
 }
 
 .section-heading p {
-  margin: 0;
-  font-size: 22px;
-  line-height: 1.5;
-  color: #5f6673;
+  font-size: 18px;
+  color: #666;
 }
 
-.artist-grid,
-.story-grid {
+/* Artists Styles matching Buyer Dashboard */
+.artists-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 26px;
-}
-
-.artist-card,
-.story-card {
-  background: #ffffff;
-  border: 1px solid #ddd6cd;
-  border-radius: 18px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  grid-template-columns: repeat(3, 1fr);
+  gap: 30px;
 }
 
 .artist-card {
-  padding: 36px 30px 28px;
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 32px 24px;
+  border: 1px solid #f0f0f0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  transition: transform 0.2s, box-shadow 0.2s;
 }
 
-.artist-top {
-  display: flex;
-  align-items: flex-start;
-  gap: 18px;
-  margin-bottom: 22px;
+.artist-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
 }
 
 .artist-avatar {
-  width: 72px;
-  height: 72px;
-  flex-shrink: 0;
+  width: 96px;
+  height: 96px;
   border-radius: 50%;
-  border: 1px solid #efcc83;
-  background: linear-gradient(135deg, #ffe7ae 0%, #ffd899 100%);
+  background-size: cover;
+  background-position: center;
+  margin-bottom: 20px;
+  border: 3px solid #fdf2ed;
 }
 
-.artist-card h3,
-.story-body h3 {
-  margin: 0 0 6px;
-  font-size: 28px;
-  line-height: 1.15;
-  color: #222222;
+.artist-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 22px;
+  font-weight: 600;
+  color: #000;
+  margin-bottom: 6px;
 }
 
-.artist-tagline,
-.artist-copy,
-.artist-followers,
-.story-body p {
-  font-family: var(--font-body);
-  color: #6a6a6a;
+.artist-category {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  color: #C4622D;
+  font-weight: 500;
+  margin-bottom: 12px;
 }
 
-.artist-tagline {
-  margin: 0;
-  font-size: 18px;
-  line-height: 1.35;
-}
-
-.artist-copy {
-  margin: 0 0 18px;
-  font-size: 17px;
+.artist-tagline-text {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 24px;
   line-height: 1.5;
 }
 
-.artist-followers {
-  font-size: 16px;
+.follow-btn {
+  font-family: 'DM Sans', sans-serif;
+  background: #fdf2ed;
+  color: #C4622D;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 24px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s;
+  width: 80%;
+  text-align: center;
 }
 
-.story-cover {
-  height: 220px;
+.follow-btn:hover {
+  background: #C4622D;
+  color: white;
+}
+
+/* Stories Styles matching Buyer Dashboard */
+.stories-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 30px;
+}
+
+.story-card {
+  background-size: cover;
+  background-position: center;
+  border-radius: 12px;
+  height: 380px;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.story-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.15);
+}
+
+.story-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.3) 50%, transparent 100%);
+  padding: 30px;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  border-bottom: 1px solid #ddd6cd;
-  border-radius: 18px 18px 0 0;
-  background: linear-gradient(135deg, #fff0bc 0%, #ffd69b 100%);
-  color: #b9a174;
+  flex-direction: column;
+  justify-content: flex-end;
+  color: white;
+}
+
+.story-date {
+  font-size: 12px;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-size: 15px;
+  letter-spacing: 0.8px;
+  color: #e8e0d8;
+  margin-bottom: 8px;
+  font-weight: 500;
 }
 
-.story-body {
-  padding: 24px 26px 22px;
+.story-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 26px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  line-height: 1.25;
 }
 
-.story-body p {
-  margin: 0;
-  font-size: 17px;
-  line-height: 1.45;
+.story-artist {
+  font-size: 14px;
+  color: #ddd;
+  margin-bottom: 24px;
 }
 
-.page-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 28px 24px 20px;
-  border-top: 1px solid #ddd6cd;
-  background: #ffffff;
+.story-artist span {
+  color: #fff;
+  font-weight: 600;
 }
 
-.footer-brand {
-  font-family: var(--font-heading);
-  font-size: 24px;
-  color: var(--color-primary);
-  font-style: italic;
+.view-story-btn {
+  font-family: 'DM Sans', sans-serif;
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(4px);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  align-self: flex-start;
+  transition: background 0.2s;
+  text-decoration: none;
+  text-align: center;
 }
 
-.footer-copy {
-  font-size: 18px;
-  color: #5f6673;
-}
-
-@media (max-width: 960px) {
-  .hero-title {
-    font-size: 56px;
-  }
-
-  .hero-text {
-    font-size: 20px;
-  }
-
-  .artist-grid,
-  .story-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .section-heading p,
-  .footer-copy {
-    font-size: 17px;
-  }
-
-  .page-footer {
-    flex-direction: column;
-    align-items: flex-start;
-  }
+.view-story-btn:hover {
+  background: white;
+  color: #000;
 }
 </style>

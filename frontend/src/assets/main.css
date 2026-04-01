@@ -5,26 +5,28 @@
   --color-primary: #C4622D;
   --color-primary-hover: #a95224;
   --color-primary-light: #fdf2ed;
-  
+
   /* Text Colors */
   --color-text-dark: #000000;
   --color-text-body: #333333;
   --color-text-muted: #888888;
   --color-text-light: #ffffff;
-  
+
   /* Background Colors */
-  --color-bg-page: #ffffff;
+  --color-bg-page: #fdf2ed;
   --color-bg-card: #ffffff;
-  --color-bg-alt: #fdfaf8;
-  
+  --color-bg-alt: #f5e4da;
+  --color-nav-bg: rgba(255, 255, 255, 0.85);
+  --color-footer-bg: var(--color-bg-page);
+
   /* Border Colors */
   --color-border: #e8e0d8;
   --color-border-light: #f0f0f0;
-  
+
   /* Typography */
   --font-heading: 'Playfair Display', serif;
   --font-body: 'DM Sans', sans-serif;
-  
+
   /* Shadows */
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.05);
@@ -45,7 +47,12 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-family: var(--font-heading);
   color: var(--color-text-dark);
   margin-top: 0;

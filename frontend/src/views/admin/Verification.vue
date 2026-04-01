@@ -119,6 +119,20 @@ function capitalise(str) {
 </script>
 
 <style scoped>
+.page-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 60px 40px;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.page-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 32px;
+  margin-bottom: 24px;
+  color: #1A1A1A;
+}
+
 .tabs {
   display: flex;
   gap: 8px;

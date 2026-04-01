@@ -2,8 +2,8 @@
   <div class="buyers-page">
     <AdminNavbar />
 
-    <div class="container">
-      <h1 class="title">Buyers</h1>
+    <div class="page-container">
+      <h1 class="page-title">Buyers</h1>
 
       <!-- Search Bar -->
       <div class="search-bar">
@@ -141,14 +141,18 @@ const confirmSuspend = async () => {
   min-height: 100vh;
 }
 
-.container {
-  padding: 24px 40px;
+.page-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 60px 40px;
+  font-family: 'DM Sans', sans-serif;
 }
 
-.title {
+.page-title {
   font-family: 'Playfair Display', serif;
   font-size: 32px;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
+  color: #1A1A1A;
 }
 
 .search-bar {

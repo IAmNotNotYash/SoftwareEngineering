@@ -1,249 +1,298 @@
 <template>
-
-  <div class="dashboard">
+  <div class="artist-dashboard">
     <ArtistNavbar />
-
-    <div class="page-header">
-      <h1>Welcome back, Artist! 🎨</h1>
-      <p>Here's how your creative business is doing.</p>
-    </div>
-
-    <div class="stats-grid">
-      <div class="stat-card" v-for="stat in stats" :key="stat.label">
-        <div class="stat-header">
-          <span class="stat-label">{{ stat.label }}</span>
-          <div class="stat-icon" :style="{ background: stat.iconBg }">
-            <span>{{ stat.icon }}</span>
-          </div>
+    
+    <main class="page-container">
+      <header class="dash-header">
+        <div>
+          <h1 class="page-title">Artist Dashboard</h1>
+          <p class="subtitle">Here is how your brand and catalogues are performing.</p>
         </div>
-        <div class="stat-value">{{ stat.value }}</div>
-        <div class="stat-change" :class="stat.changeType">{{ stat.change }}</div>
-      </div>
-    </div>
+        <div class="quick-actions">
+          <RouterLink to="/artist/newcatalogue" class="btn primary-btn">+ New Catalogue</RouterLink>
+          <RouterLink to="/artist/products" class="btn secondary-btn">+ Add Product</RouterLink>
+          <RouterLink to="/artist/story" class="btn secondary-btn">+ Post Story</RouterLink>
+        </div>
+      </header>
 
-    <div class="bottom-row">
-      <div class="card chart-card">
+      <section class="kpi-grid" v-if="!loading">
+        <div class="kpi-card">
+          <div class="kpi-label">TOTAL REVENUE (₹)</div>
+          <div class="kpi-value highlight">{{ stats.totalRevenue }}</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">TOTAL ORDERS</div>
+          <div class="kpi-value">{{ stats.totalOrders }}</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">CATALOGUE VIEWS</div>
+          <div class="kpi-value">{{ stats.catalogueViews.toLocaleString() }}</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">STORY ENGAGEMENT</div>
+          <div class="kpi-value">{{ stats.storyEngagement }}</div>
+        </div>
+      </section>
+      <div v-else class="loading-state">Loading actual performance metrics...</div>
+
+      <section class="chart-section" v-if="!loading">
         <div class="chart-header">
-          <h3>Growth Overview</h3>
-          <div class="chart-legend">
-            <span class="legend-dot" style="background:#22C55E"></span> Revenue
-            <span class="legend-dot" style="background:#3B82F6"></span> Followers
+          <h2>Performance Over Time</h2>
+          <div class="legend">
+            <span class="legend-item"><span class="dot rev-dot"></span> Revenue</span>
+            <span class="legend-item"><span class="dot view-dot"></span> Catalogue Views</span>
           </div>
         </div>
-        <!-- chart-wrap fills remaining space; canvas sizes to it -->
-        <div class="chart-wrap">
-          <canvas ref="chartCanvas"></canvas>
+        <div class="chart-container">
+          <canvas ref="performanceChart"></canvas>
         </div>
-      </div>
-
-      <div class="card audience-card">
-        <h3>Audience Segments</h3>
-        <div class="segment" v-for="seg in segments" :key="seg.label">
-          <div class="seg-header">
-            <div class="seg-name">
-              <span>{{ seg.icon }}</span>
-              {{ seg.label }}
-            </div>
-            <strong>{{ seg.count.toLocaleString() }}</strong>
-          </div>
-          <div class="seg-bar-bg">
-            <div class="seg-bar" :style="{ width: seg.pct + '%', background: seg.color }"></div>
-          </div>
-        </div>
-      </div>
-    </div>
+      </section>
+    </main>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import ArtistNavbar from '../../components/ArtistNavbar.vue'
+import { ref, onMounted, nextTick } from 'vue'
 import { Chart, registerables } from 'chart.js'
+import ArtistNavbar from '../../components/ArtistNavbar.vue'
+import { getArtistStats } from '../../api/artist.js'
+
 Chart.register(...registerables)
 
-const chartCanvas = ref(null)
+const stats = ref(null)
+const loading = ref(true)
+const performanceChart = ref(null)
 
-const stats = [
-  { label: 'Total Revenue', value: '₹1,85,400', icon: '₹', iconBg: '#DCFCE7', change: '↑ 12.5% this month', changeType: 'up' },
-  { label: 'Total Followers', value: '16,575', icon: '👥', iconBg: '#DBEAFE', change: '↑ 8.3% this month', changeType: 'up' },
-  { label: 'Total Orders', value: '842', icon: '🛒', iconBg: '#FED7AA', change: '↑ 5.1% this month', changeType: 'up' },
-  { label: 'Pending Orders', value: '23', icon: '⏱', iconBg: '#FEF3C7', change: '↓ 3 new today', changeType: 'down' },
-]
+onMounted(async () => {
+  stats.value = await getArtistStats()
+  loading.value = false
+  
+  await nextTick()
+  initChart()
+})
 
-const segments = [
-  { label: 'Followers', icon: '👥', count: 12840, pct: 78, color: '#3B82F6' },
-  { label: 'Fans', icon: '❤️', count: 3250, pct: 45, color: '#F97316' },
-  { label: 'Patrons', icon: '👑', count: 485, pct: 18, color: '#8B5CF6' },
-]
-
-const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul']
-const revenueData = [9000, 12000, 11000, 14000, 18000, 24000, 33000]
-const followerData = [9000, 10000, 10500, 11200, 12000, 13000, 14200]
-
-onMounted(() => {
-  new Chart(chartCanvas.value, {
+const initChart = () => {
+  if (!performanceChart.value) return
+  
+  new Chart(performanceChart.value, {
     type: 'line',
     data: {
-      labels: months,
+      labels: stats.value.months,
       datasets: [
         {
           label: 'Revenue',
-          data: revenueData,
-          borderColor: '#22C55E',
-          backgroundColor: 'rgba(34,197,94,0.1)',
+          data: stats.value.revenueTrend,
+          borderColor: '#C4622D',
+          backgroundColor: 'rgba(196, 98, 45, 0.1)',
           fill: true,
           tension: 0.4,
-          pointRadius: 0,
-          borderWidth: 2.5,
+          borderWidth: 3,
+          yAxisID: 'y'
         },
         {
-          label: 'Followers',
-          data: followerData,
-          borderColor: '#3B82F6',
-          backgroundColor: 'rgba(59,130,246,0.05)',
+          label: 'Catalogue Views',
+          data: stats.value.viewsTrend,
+          borderColor: '#2D2A26',
+          backgroundColor: 'rgba(45, 42, 38, 0.05)',
           fill: true,
           tension: 0.4,
-          pointRadius: 0,
           borderWidth: 2,
+          yAxisID: 'y1'
         }
       ]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
+      interaction: {
+        mode: 'index',
+        intersect: false,
+      },
+      plugins: {
+        legend: { display: false }
+      },
       scales: {
-        x: { grid: { color: '#F0EDE8' }, ticks: { font: { family: 'DM Sans', size: 12 }, color: '#A09A94' } },
-        y: { grid: { color: '#F0EDE8' }, ticks: { font: { family: 'DM Sans', size: 12 }, color: '#A09A94' } }
+        x: {
+          grid: { display: false }
+        },
+        y: {
+          type: 'linear',
+          display: true,
+          position: 'left',
+          grid: { color: '#f0f0f0' }
+        },
+        y1: {
+          type: 'linear',
+          display: true,
+          position: 'right',
+          grid: { display: false }
+        }
       }
     }
   })
-})
+}
 </script>
 
 <style scoped>
-/*
-  The dashboard must never grow taller than the viewport's available space.
-  The trick: make .dashboard a flex column that fills its parent's height,
-  then let .bottom-row absorb all leftover space (flex:1 + min-height:0).
-  The chart-card is also a flex column so .chart-wrap can stretch inside it.
-  Setting min-height:0 on every flex child prevents the default min-height:auto
-  from allowing overflow.
-*/
-
-.dashboard {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  height: 100%;       /* fill parent — parent must also have a defined height */
-  overflow: hidden;
-}
-.page-header{margin:20px;}
-.page-header h1 { font-size: 26px; font-weight: 600; margin-bottom: 4px; }
-.page-header p { color: var(--text-2); }
-
-/* Fixed-height top section — stat cards never shrink */
-.stats-grid {
-  margin:20px;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  flex-shrink: 0;
+.artist-dashboard {
+  min-height: 100vh;
+  background: var(--color-bg-page);
+  font-family: var(--font-body);
 }
 
-.stat-card {
-  background: white;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 20px;
-  box-shadow: var(--shadow);
+.page-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 60px 40px;
 }
 
-.stat-header {
+.dash-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: flex-end;
+  margin-bottom: 48px;
+}
+
+.page-title {
+  font-family: var(--font-heading);
+  font-size: 34px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 8px 0;
+}
+
+.subtitle {
+  font-size: 16px;
+  color: #666;
+  margin: 0;
+}
+
+.quick-actions {
+  display: flex;
+  gap: 16px;
+}
+
+.btn {
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.primary-btn {
+  background: #C4622D;
+  color: #fff;
+  border: 1px solid #C4622D;
+}
+
+.primary-btn:hover {
+  background: #a85427;
+}
+
+.secondary-btn {
+  background: #fff;
+  color: #1a1a1a;
+  border: 1px solid #e8e0d8;
+}
+
+.secondary-btn:hover {
+  border-color: #C4622D;
+  color: #C4622D;
+}
+
+/* KPI Grid perfectly tracking dashboard style */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  margin-bottom: 56px;
+}
+
+.kpi-card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 28px;
+  border: 1px solid #e8e0d8;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+}
+
+.kpi-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #888;
+  font-weight: 600;
   margin-bottom: 12px;
 }
 
-.stat-label { font-size: 13px; color: var(--text-2); font-weight: 500; }
-
-.stat-icon {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
+.kpi-value {
+  font-family: var(--font-heading);
+  font-size: 36px;
+  font-weight: 600;
+  color: #1a1a1a;
 }
 
-.stat-value {
-  font-size: 28px;
-  font-weight: 700;
-  font-family: 'Fraunces', serif;
-  margin-bottom: 8px;
+.kpi-value.highlight {
+  color: #C4622D;
 }
 
-.stat-change { font-size: 12px; font-weight: 500; }
-.stat-change.up { color: var(--green); }
-.stat-change.down { color: var(--red); }
-
-/* Bottom row stretches to fill remaining vertical space */
-.bottom-row {
-      display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 20px;
-    flex: 1;
-    min-height: 0;
-    margin: 20px; /* allow shrinking below content size — critical for flex children */
-}
-
-/* chart-card is a flex column so chart-wrap can grow inside it */
-.chart-card {
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
+/* Chart Section */
+.chart-section {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 32px;
+  border: 1px solid #e8e0d8;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.02);
 }
 
 .chart-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
-  flex-shrink: 0;   /* header never compresses */
+  margin-bottom: 24px;
 }
 
-.chart-header h3 { font-size: 16px; }
-.chart-legend { display: flex; align-items: center; gap: 14px; font-size: 13px; color: var(--text-2); }
-.legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 4px; }
-
-/*
-  chart-wrap is the key: it fills all remaining height inside chart-card.
-  position:relative + width/height 100% is the standard Chart.js responsive pattern.
-*/
-.chart-wrap {
-  flex: 1;
-  min-height: 0;
-  position: relative;
+.chart-header h2 {
+  font-family: var(--font-heading);
+  font-size: 22px;
+  margin: 0;
+  color: #1a1a1a;
 }
 
-.chart-wrap canvas {
-  position: absolute;
-  inset: 0;
+.legend {
+  display: flex;
+  gap: 20px;
 }
 
-.audience-card {
-  padding: 20px;
-  overflow-y: auto;  /* scroll if segments overflow */
+.legend-item {
+  font-size: 13px;
+  color: #555;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.audience-card h3 { font-size: 16px; margin-bottom: 20px; }
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
 
-.segment { margin-bottom: 18px; }
-.seg-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 14px; }
-.seg-name { display: flex; align-items: center; gap: 8px; color: var(--text-2); }
-.seg-bar-bg { height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden; }
-.seg-bar { height: 100%; border-radius: 3px; transition: width 0.6s ease; }
+.rev-dot { background: #C4622D; }
+.view-dot { background: #2D2A26; }
+
+.chart-container {
+  height: 380px;
+  width: 100%;
+}
+
+.loading-state {
+  text-align: center;
+  padding: 80px 0;
+  color: #888;
+  font-size: 15px;
+}
 </style>

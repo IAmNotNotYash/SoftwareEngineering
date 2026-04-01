@@ -37,13 +37,17 @@ const hasLogo = ref(true)
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 40px;
-  height: 56px;
-  background: #ffffff;
-  border-bottom: 1px solid #e8e0d8;
+  padding: 0 60px;
+  height: 72px;
+  background: var(--color-nav-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(232, 224, 216, 0.4);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.03);
   position: sticky;
   top: 0;
   z-index: 100;
+  transition: all 0.3s ease;
 }
 
 .navbar-logo a {
@@ -90,25 +94,46 @@ const hasLogo = ref(true)
 .navbar-links a {
   text-decoration: none;
   font-size: 14px;
-  color: #555;
+  color: #666;
   font-family: 'DM Sans', sans-serif;
+  position: relative;
+  font-weight: 500;
+  padding: 6px 0;
+  transition: color 0.3s ease;
+}
+
+.navbar-links a::after {
+  content: '';
+  position: absolute;
+  width: 0;
+  height: 2px;
+  bottom: 0;
+  left: 50%;
+  background-color: #C4622D;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  transform: translateX(-50%);
+  border-radius: 2px;
 }
 
 .navbar-links a:hover {
-  color: #C4622D;
+  color: #1a1a1a;
+}
+.navbar-links a:hover::after,
+.navbar-links a.router-link-active::after {
+  width: 100%;
 }
 
 .navbar-links a.router-link-active {
-  color: #C4622D;
+  color: #1a1a1a;
   font-weight: 600;
 }
 
 .navbar-links .logout {
-  color: #888;
+  color: #999;
 }
 
 .navbar-links .logout:hover {
-  color: #C4622D;
+  color: #1a1a1a;
 }
 
 .cart-link {
@@ -121,9 +146,10 @@ const hasLogo = ref(true)
 .cart-count {
   background: #C4622D;
   color: white;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 2px 6px;
-  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 7px;
+  border-radius: 12px;
+  box-shadow: 0 2px 6px rgba(196, 98, 45, 0.3);
 }
 </style>

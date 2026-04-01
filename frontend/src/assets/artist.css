@@ -1,10 +1,10 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --orange: #F97316;
-  --orange-light: #FED7AA;
-  --orange-pale: #FFF7ED;
-  --bg: #FAFAF8;
+  --orange: #1A1A1A;
+  --orange-light: #E5E5E5;
+  --orange-pale: #F5F5F5;
+  --bg: #faf8f5;
   --surface: #FFFFFF;
   --border: #E8E5E0;
   --text: #1A1714;
@@ -31,7 +31,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-h1, h2, h3 { font-family: 'Fraunces', serif; }
+h1, h2, h3 { font-family: 'Playfair Display', serif; }
 
 button {
   font-family: 'DM Sans', sans-serif;
@@ -59,7 +59,7 @@ a { text-decoration: none; color: inherit; }
   align-items: center;
   gap: 6px;
 }
-.btn-primary:hover { background: #EA6C00; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(249,115,22,0.3); }
+.btn-primary:hover { background: #333333; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
 
 .btn-secondary {
   background: white;

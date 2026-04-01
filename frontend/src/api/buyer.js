@@ -157,3 +157,33 @@ export const getArtistDetails = async (id) => {
     }, 400)
   })
 }
+
+export const getFollowedArtists = async () => {
+  await new Promise((resolve) => setTimeout(resolve, 300))
+  return [
+    { id: 1, name: "Aurum Studio", category: "Jewelry", followers: "2.4k", avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200" },
+    { id: 3, name: "Lumina", category: "Home Decor", followers: "4.1k", avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=200" },
+  ]
+}
+
+export const getBuyerProfile = async () => {
+  await new Promise((resolve) => setTimeout(resolve, 300))
+  return {
+    name: "Alex Doe",
+    email: "alex.doe@example.com",
+    phone: "+1 555-0198",
+    joinDate: "August 2025",
+    shipping: {
+      address: "123 Creative Studio Ave",
+      city: "San Francisco",
+      state: "CA",
+      zip: "94103",
+      country: "USA"
+    },
+    payment: {
+      cardType: "Visa",
+      last4: "4242",
+      expiry: "12/28"
+    }
+  }
+}

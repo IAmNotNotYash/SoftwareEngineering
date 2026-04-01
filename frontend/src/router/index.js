@@ -23,13 +23,17 @@ import BuyerProductDetails from '../views/buyer/ProductDetails.vue'
 import BuyerInsight from '../views/buyer/Insight.vue'
 import BuyerCheckout from '../views/buyer/Checkout.vue'
 import BuyerArtist from '../views/buyer/Artist.vue'
+import BuyerFollowing from '../views/buyer/Following.vue'
+import BuyerProfile from '../views/buyer/Profile.vue'
 
 //Artist views
 import ArtistDashboard from '../views/artist/Dashboards.vue'
-import ArtistCampaign from '../views/artist/Campaigns.vue'
-import ArtistNewCampaign from '../views/artist/NewCampaign.vue'
+import ArtistCampaign from '../views/artist/Catalogues.vue'
+import ArtistNewCampaign from '../views/artist/NewCatalogue.vue'
 import ArtistProducts from '../views/artist/Products.vue'
 import ArtistSendOuts from '../views/artist/SendOut.vue'
+import ArtistOrders from '../views/artist/Orders.vue'
+import ArtistStory from '../views/artist/NewStory.vue'
 
 const routes = [
   // Public routes
@@ -55,13 +59,17 @@ const routes = [
   { path: '/buyer/insight/:id',  component: BuyerInsight },
   { path: '/buyer/artist/:id',   component: BuyerArtist },
   { path: '/buyer/checkout',     component: BuyerCheckout },
+  { path: '/buyer/following',    component: BuyerFollowing },
+  { path: '/buyer/profile',      component: BuyerProfile },
   
   // Artist routes
   { path: '/artist/dashboard',    component: ArtistDashboard },
-  { path: '/artist/campaigns',     component: ArtistCampaign  },
-  { path: '/artist/newcampaigns',     component: ArtistNewCampaign  },
+  { path: '/artist/catalogues',     component: ArtistCampaign  },
+  { path: '/artist/newcatalogue',     component: ArtistNewCampaign  },
   { path: '/artist/products',     component: ArtistProducts  },
   { path: '/artist/sendouts',     component: ArtistSendOuts  },
+  { path: '/artist/orders',     component: ArtistOrders  },
+  { path: '/artist/story',     component: ArtistStory  },
 
   // Default redirect
   { path: '/:pathMatch(.*)*', redirect: '/' },

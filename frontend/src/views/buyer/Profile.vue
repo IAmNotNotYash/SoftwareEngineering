@@ -35,6 +35,29 @@
         </div>
       </section>
 
+      <!-- Stats Section -->
+      <section class="profile-section">
+        <h2>My Activity</h2>
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-label">Followed Artists</div>
+            <div class="kpi-value">{{ stats.followedArtists || 0 }}</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Favorite Products</div>
+            <div class="kpi-value">{{ stats.favoriteProducts || 0 }}</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Recent Orders</div>
+            <div class="kpi-value">{{ stats.recentOrders || 0 }}</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Upcoming Deliveries</div>
+            <div class="kpi-value text-highlight">{{ stats.upcomingDeliveries || 0 }}</div>
+          </div>
+        </div>
+      </section>
+
       <!-- Shipping Address Section -->
       <section class="profile-section">
         <div class="section-header">
@@ -68,14 +91,20 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { getBuyerProfile } from '../../api/buyer.js'
+import { getBuyerProfile, getDashboardStats } from '../../api/buyer.js'
 import BuyerNavbar from '../../components/BuyerNavbar.vue'
 
 const profile = ref(null)
+const stats = ref(null)
 const loading = ref(true)
 
 onMounted(async () => {
-  profile.value = await getBuyerProfile()
+  const [profileData, statsData] = await Promise.all([
+    getBuyerProfile(),
+    getDashboardStats()
+  ])
+  profile.value = profileData
+  stats.value = statsData
   loading.value = false
 })
 </script>
@@ -235,9 +264,47 @@ onMounted(async () => {
   color: #888;
 }
 
+.text-highlight {
+  color: #C4622D;
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+}
+
+.kpi-card {
+  background: #faf8f5;
+  border-radius: 8px;
+  padding: 20px;
+  border: 1px solid #f0f0f0;
+  text-align: center;
+}
+
+.kpi-label {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #888;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.kpi-value {
+  font-family: 'Playfair Display', serif;
+  font-size: 28px;
+  color: #2D2A26;
+  font-weight: 600;
+}
+
 @media (max-width: 768px) {
   .info-grid {
     grid-template-columns: 1fr;
+  }
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 </style>

@@ -4,26 +4,6 @@
     <div class="page-container">
       <h1 class="page-title">Welcome back, Buyer!</h1>
 
-      <!-- 1. Summary Statistics -->
-      <div class="kpi-grid">
-        <div class="kpi-card">
-          <div class="kpi-label">FOLLOWED ARTISTS</div>
-          <div class="kpi-value">{{ stats.followedArtists || 0 }}</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-label">FAVORITE PRODUCTS</div>
-          <div class="kpi-value">{{ stats.favoriteProducts || 0 }}</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-label">RECENT ORDERS</div>
-          <div class="kpi-value">{{ stats.recentOrders || 0 }}</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-label">UPCOMING DELIVERIES</div>
-          <div class="kpi-value text-highlight">{{ stats.upcomingDeliveries || 0 }}</div>
-        </div>
-      </div>
-
       <!-- 2. Recent Stories (Catalogues) -->
       <div class="section-container">
         <h2 class="section-title">New Catalogue from Your Creators</h2>
@@ -101,17 +81,15 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import BuyerNavbar from '../../components/BuyerNavbar.vue'
-import { getDashboardStats, getFeaturedProducts, getRecentStories, getArtistsToFollow, getArtInsights } from '../../api/buyer.js'
+import { getFeaturedProducts, getRecentStories, getArtistsToFollow, getArtInsights } from '../../api/buyer.js'
 import { cartState } from '../../store/cart.js'
 
-const stats = ref({})
 const featuredProducts = ref([])
 const recentStories = ref([])
 const artistsToFollow = ref([])
 const insights = ref([])
 
 onMounted(async () => {
-  stats.value = await getDashboardStats()
   recentStories.value = await getRecentStories()
   artistsToFollow.value = await getArtistsToFollow()
   featuredProducts.value = await getFeaturedProducts()
@@ -132,41 +110,6 @@ onMounted(async () => {
   font-weight: 600;
   color: #000;
   margin-bottom: 32px;
-}
-
-.kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 20px;
-  margin-bottom: 56px;
-}
-
-.kpi-card {
-  background: #ffffff;
-  border-radius: 8px;
-  padding: 24px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  border: 1px solid #f0f0f0;
-}
-
-.kpi-label {
-  font-family: 'DM Sans', sans-serif;
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #888;
-  margin-bottom: 12px;
-}
-
-.kpi-value {
-  font-family: 'Playfair Display', serif;
-  font-size: 32px;
-  color: #000;
-  font-weight: 500;
-}
-
-.text-highlight {
-  color: #C4622D;
 }
 
 .section-container {
