@@ -2,21 +2,22 @@
   <div>
     <BuyerNavbar />
     <div class="page-container">
-      <h1 class="page-title">Welcome back, Buyer!</h1>
+      <h1 class="page-title">{{ greeting }}</h1>
 
-      <!-- 2. Recent Stories (Catalogues) -->
+      <!-- Recent Catalogues -->
       <div class="section-container">
         <h2 class="section-title">New Catalogue from Your Creators</h2>
-        <div class="stories-grid">
-          <div v-for="story in recentStories" :key="story.id" class="story-card" :style="{ backgroundImage: `url(${story.cover})` }">
+        <div v-if="recentCatalogues.length" class="stories-grid">
+          <div v-for="cat in recentCatalogues" :key="cat.id" class="story-card" :style="{ backgroundImage: `url(${cat.cover_photo_url})` }">
             <div class="story-overlay">
-              <div class="story-date">{{ story.date }}</div>
-              <div class="story-title">{{ story.title }}</div>
-              <div class="story-artist">by <span>{{ story.artist }}</span></div>
-              <RouterLink :to="`/buyer/catalogue/${story.id}`" class="view-story-btn">View Catalogue</RouterLink>
+              <div class="story-date">{{ cat.published_at ? new Date(cat.published_at).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }) : 'New' }}</div>
+              <div class="story-title">{{ cat.title }}</div>
+              <div class="story-artist">by <span>{{ cat.artist_name }}</span></div>
+              <RouterLink :to="`/buyer/catalogue/${cat.id}`" class="view-story-btn">View Catalogue</RouterLink>
             </div>
           </div>
         </div>
+        <p v-else style="color:#888; font-size:14px;">No live catalogues available yet.</p>
       </div>
 
       <!-- 3. Artists to Follow -->
@@ -31,7 +32,9 @@
               </RouterLink>
               <div class="artist-category">{{ artist.category }} • {{ artist.followers }} Followers</div>
             </div>
-            <button class="follow-btn">Follow</button>
+            <button class="follow-btn" @click="toggleFollow(artist)">
+              {{ artist.isFollowing ? 'Following' : 'Follow' }}
+            </button>
           </div>
         </div>
       </div>
@@ -55,23 +58,26 @@
       <!-- 5. Featured Products -->
       <div class="section-container" style="margin-bottom: 60px;">
         <h2 class="section-title">Trending Handcrafts</h2>
-        <div class="products-grid">
+        <div v-if="featuredProducts.length" class="products-grid">
           <div v-for="product in featuredProducts" :key="product.id" class="product-card">
             <RouterLink :to="`/buyer/product/${product.id}`" style="display: block;">
               <div class="product-image" :style="{ backgroundImage: `url(${product.image})` }"></div>
             </RouterLink>
             <div class="product-info">
-              <div class="product-artist">{{ product.artist }}</div>
+              <div class="product-artist">{{ product.artist_name }}</div>
               <RouterLink :to="`/buyer/product/${product.id}`" style="text-decoration:none; color:inherit;">
-                <div class="product-title" style="transition: color 0.2s;" onmouseover="this.style.color='#C4622D'" onmouseout="this.style.color='#000'">{{ product.title }}</div>
+                <div class="product-title">{{ product.title }}</div>
               </RouterLink>
               <div class="product-footer">
                 <span class="product-price">₹{{ product.price.toLocaleString('en-IN') }}</span>
-                <button class="add-cart-btn" @click="cartState.addItem(product)">Add to Cart</button>
+                <button class="add-cart-btn" @click="handleAddToCart(product)" :disabled="addingId === product.id">
+                  {{ addingId === product.id ? '...' : 'Add to Cart' }}
+                </button>
               </div>
             </div>
           </div>
         </div>
+        <p v-else style="color:#888; font-size:14px;">No products available yet.</p>
       </div>
 
     </div>
@@ -79,22 +85,92 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import BuyerNavbar from '../../components/BuyerNavbar.vue'
-import { getFeaturedProducts, getRecentStories, getArtistsToFollow, getArtInsights } from '../../api/buyer.js'
-import { cartState } from '../../store/cart.js'
+import { getProducts, getArtists } from '../../api/commerce.js'
+import { getCatalogues } from '../../api/catalogue.js'
+import { getPosts, followArtist, unfollowArtist, checkFollowStatus } from '../../api/social.js'
+import { useCartStore } from '../../stores/cart.js'
+import { useAuthStore } from '../../stores/auth.js'
+
+const cartStore = useCartStore()
+const authStore = useAuthStore()
 
 const featuredProducts = ref([])
-const recentStories = ref([])
+const recentCatalogues = ref([])
 const artistsToFollow = ref([])
 const insights = ref([])
+const addingId = ref(null)
+
+// Personalised greeting
+const greeting = computed(() => {
+  const name = authStore.user?.name
+  return name ? `Welcome back, ${name.split(' ')[0]}!` : 'Welcome to Kala!'
+})
 
 onMounted(async () => {
-  recentStories.value = await getRecentStories()
-  artistsToFollow.value = await getArtistsToFollow()
-  featuredProducts.value = await getFeaturedProducts()
-  insights.value = await getArtInsights()
+  await cartStore.loadCart()
+  
+  // Fetch a handful of live products
+  try {
+    const data = await getProducts()
+    featuredProducts.value = (Array.isArray(data) ? data : (data.products || [])).slice(0, 3)
+  } catch {}
+
+  // Fetch live catalogues
+  try {
+    const data = await getCatalogues({ status: 'live' })
+    recentCatalogues.value = (data.catalogues || []).slice(0, 3)
+  } catch {}
+
+  // Fetch Discover Artists
+  try {
+    const data = await getArtists()
+    const all = Array.isArray(data) ? data : (data.artists || [])
+    
+    // Check initial follow status for each
+    for (let a of all) {
+      if (authStore.user) {
+        const { is_following } = await checkFollowStatus(a.id)
+        a.isFollowing = is_following
+      }
+    }
+    artistsToFollow.value = all.slice(0, 4)
+  } catch {}
+
+  // Fetch Insight Posts
+  try {
+    const data = await getPosts({ type: 'insight' })
+    insights.value = data.slice(0, 2).map(p => ({
+      id: p.id,
+      artist: p.artist_name,
+      title: p.title,
+      excerpt: p.body.substring(0, 100) + '...',
+      image: p.cover_image_url || 'https://images.unsplash.com/photo-1460662136047-402e1ca4ad37?q=80&w=600'
+    }))
+  } catch {}
 })
+
+async function toggleFollow(artist) {
+  try {
+    if (artist.isFollowing) {
+      await unfollowArtist(artist.id)
+      artist.isFollowing = false
+    } else {
+      await followArtist(artist.id)
+      artist.isFollowing = true
+    }
+  } catch (e) {
+    alert(e.message)
+  }
+}
+
+async function handleAddToCart(product) {
+  addingId.value = product.id
+  try { await cartStore.addItem(product.id) }
+  catch (e) { alert(e.message) }
+  finally { addingId.value = null }
+}
 </script>
 
 <style scoped>

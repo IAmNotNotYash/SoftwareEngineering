@@ -16,6 +16,8 @@ class User(db.Model):
 
     artist_profile = db.relationship('ArtistProfile', back_populates='user', uselist=False, cascade='all, delete-orphan')
     buyer_profile = db.relationship('BuyerProfile', back_populates='user', uselist=False, cascade='all, delete-orphan')
+    addresses = db.relationship('Address', backref='user', lazy=True, cascade='all, delete-orphan')
+    payment_methods = db.relationship('PaymentMethod', backref='user', lazy=True, cascade='all, delete-orphan')
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -55,3 +57,29 @@ class BuyerProfile(db.Model):
     updated_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     user = db.relationship('User', back_populates='buyer_profile')
+
+class Address(db.Model):
+    __tablename__ = 'addresses'
+
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
+    label = db.Column(db.String(50), nullable=True)
+    full_address = db.Column(db.Text, nullable=False)
+    city = db.Column(db.String(100), nullable=False)
+    state = db.Column(db.String(100), nullable=False)
+    pin_code = db.Column(db.String(20), nullable=False)
+    country = db.Column(db.String(100), nullable=False, default='India')
+    is_default = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+class PaymentMethod(db.Model):
+    __tablename__ = 'payment_methods'
+
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
+    card_type = db.Column(db.String(50), nullable=False)
+    last_4 = db.Column(db.String(4), nullable=False)
+    expiry_month = db.Column(db.String(2), nullable=False)
+    expiry_year = db.Column(db.String(4), nullable=False)
+    is_default = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))

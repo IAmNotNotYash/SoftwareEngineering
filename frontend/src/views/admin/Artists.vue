@@ -44,19 +44,18 @@
               <td>
                 <span
                   class="badge"
-                  :class="artist.suspended ? 'suspended' : 'active'"
+                  :class="artist.is_suspended ? 'suspended' : 'active'"
                 >
-                  {{ artist.suspended ? 'Suspended' : 'Active' }}
+                  {{ artist.is_suspended ? 'Suspended' : 'Active' }}
                 </span>
               </td>
               <td>{{ artist.joined }}</td>
               <td>
                 <button
                   class="suspend-btn"
-                  :disabled="artist.suspended"
                   @click="openModal(artist)"
                 >
-                  {{ artist.suspended ? 'Suspended' : 'Suspend' }}
+                  {{ artist.is_suspended ? 'Unsuspend' : 'Suspend' }}
                 </button>
               </td>
             </tr>
@@ -66,18 +65,24 @@
         <p v-if="filteredArtists.length === 0" class="empty">
           No artists found.
         </p>
+
+        <div v-if="hasMore" class="pagination-footer">
+          <button class="load-more-btn" @click="loadMore" :disabled="loadingMore">
+            {{ loadingMore ? 'Loading...' : 'Load More' }}
+          </button>
+        </div>
       </div>
     </div>
 
     <!-- Confirmation Modal -->
     <div v-if="showModal" class="modal-overlay">
       <div class="modal">
-        <h3>Confirm Suspension</h3>
-        <p>Are you sure you want to suspend {{ selectedArtist?.name }}?</p>
+        <h3>{{ selectedArtist?.is_suspended ? 'Confirm Unsuspension' : 'Confirm Suspension' }}</h3>
+        <p>Are you sure you want to {{ selectedArtist?.is_suspended ? 'unsuspend' : 'suspend' }} {{ selectedArtist?.name }}?</p>
 
         <div class="modal-actions">
           <button class="cancel" @click="closeModal">Cancel</button>
-          <button class="confirm" @click="confirmSuspend">Suspend</button>
+          <button class="confirm" @click="confirmSuspend">{{ selectedArtist?.is_suspended ? 'Unsuspend' : 'Suspend' }}</button>
         </div>
       </div>
     </div>
@@ -90,6 +95,11 @@ import AdminNavbar from '../../components/AdminNavbar.vue'
 import { getArtists, suspendArtist } from '../../api/admin.js'
 
 const artists = ref([])
+const totalArtists = ref(0)
+const limit = 10
+const offset = ref(0)
+const loadingMore = ref(false)
+
 const searchQuery = ref('')
 const debouncedQuery = ref('')
 
@@ -97,8 +107,24 @@ const showModal = ref(false)
 const selectedArtist = ref(null)
 
 onMounted(async () => {
-  artists.value = await getArtists()
+  const data = await getArtists(limit, offset.value)
+  artists.value = data.artists
+  totalArtists.value = data.total
 })
+
+const hasMore = computed(() => artists.value.length < totalArtists.value)
+
+async function loadMore() {
+  loadingMore.value = true
+  try {
+    offset.value += limit
+    const data = await getArtists(limit, offset.value)
+    artists.value = [...artists.value, ...data.artists]
+    totalArtists.value = data.total
+  } finally {
+    loadingMore.value = false
+  }
+}
 
 // Debounce logic
 let timeout = null
@@ -134,11 +160,11 @@ const closeModal = () => {
 const confirmSuspend = async () => {
   if (!selectedArtist.value) return
 
-  await suspendArtist(selectedArtist.value.id)
+  const res = await suspendArtist(selectedArtist.value.id)
 
   // optimistic update
   artists.value = artists.value.map(a =>
-    a.id === selectedArtist.value.id ? { ...a, suspended: true } : a
+    a.id === selectedArtist.value.id ? { ...a, is_suspended: res.is_suspended } : a
   )
 
   closeModal()
@@ -293,5 +319,32 @@ td {
   text-align: center;
   margin-top: 20px;
   color: #999;
+}
+
+.pagination-footer {
+  display: flex;
+  justify-content: center;
+  padding: 20px 0 10px;
+}
+
+.load-more-btn {
+  background: white;
+  border: 1px solid #C4622D;
+  color: #C4622D;
+  padding: 8px 24px;
+  border-radius: 20px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.load-more-btn:hover:not(:disabled) {
+  background: #C4622D;
+  color: white;
+}
+
+.load-more-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 </style>

@@ -6,34 +6,33 @@
         <h1 class="page-title">Browse Catalogue</h1>
         <div class="filters">
           <input type="text" v-model="searchQuery" placeholder="Search pieces or artists..." class="search-input" />
-          <select class="filter-select">
-            <option value="">All Mediums</option>
-            <option value="ceramics">Ceramics</option>
-            <option value="canvas">Canvas</option>
+          <select class="filter-select" v-model="selectedCategory">
+            <option value="">All Categories</option>
+            <option v-for="cat in categories" :key="cat" :value="cat">{{ cat }}</option>
           </select>
         </div>
       </div>
 
       <div class="products-grid">
-        <div v-for="product in filteredProducts" :key="product.id" class="product-card">
-          <RouterLink :to="`/buyer/product/${product.id}`" style="display: block; text-decoration: none; color: inherit;">
-            <div class="product-image" :style="{ backgroundImage: `url(${product.image})` }">
-              <div class="category-badge">{{ product.category }}</div>
-            </div>
-          </RouterLink>
-          <div class="product-info">
-            <RouterLink to="/buyer/artist/1" style="text-decoration:none;">
-              <div class="product-artist">{{ product.artist }}</div>
+          <div v-for="product in filteredProducts" :key="product.id" class="product-card">
+            <RouterLink :to="`/buyer/product/${product.id}`" style="display: block; text-decoration: none; color: inherit;">
+              <div class="product-image" :style="{ backgroundImage: `url(${product.image})` }">
+                <div class="category-badge">{{ product.category }}</div>
+              </div>
             </RouterLink>
-            <RouterLink :to="`/buyer/product/${product.id}`" class="product-title-link">
-              <div class="product-title">{{ product.title }}</div>
-            </RouterLink>
-            <div class="product-footer">
-              <span class="product-price">₹{{ product.price.toLocaleString('en-IN') }}</span>
-              <button class="add-cart-btn" @click="cartState.addItem(product)">Add to Cart</button>
+            <div class="product-info">
+              <div class="product-artist">{{ product.artist_name }}</div>
+              <RouterLink :to="`/buyer/product/${product.id}`" class="product-title-link">
+                <div class="product-title">{{ product.title }}</div>
+              </RouterLink>
+              <div class="product-footer">
+                <span class="product-price">₹{{ product.price.toLocaleString('en-IN') }}</span>
+                <button class="add-cart-btn" @click="handleAddToCart(product)" :disabled="addingId === product.id">
+                  {{ addingId === product.id ? '...' : 'Add to Cart' }}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
         <div v-if="filteredProducts.length === 0" class="no-results">
           No pieces match your search.
         </div>
@@ -45,25 +44,47 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import BuyerNavbar from '../../components/BuyerNavbar.vue'
-import { getProducts } from '../../api/buyer.js'
-import { cartState } from '../../store/cart.js'
+import { getProducts } from '../../api/commerce.js'
+import { useCartStore } from '../../stores/cart.js'
 
+const cartStore = useCartStore()
 const products = ref([])
 const searchQuery = ref('')
+const selectedCategory = ref('')
+const addingId = ref(null)
 
 onMounted(async () => {
-  products.value = await getProducts()
+  const data = await getProducts()
+  // backend returns { products: [...] }
+  products.value = Array.isArray(data) ? data : (data.products || [])
 })
 
 const filteredProducts = computed(() => {
-  if (!searchQuery.value) return products.value
-  const query = searchQuery.value.toLowerCase()
-  return products.value.filter(p => 
-    p.title.toLowerCase().includes(query) || 
-    p.artist.toLowerCase().includes(query) ||
-    p.category.toLowerCase().includes(query)
-  )
+  let list = products.value
+  if (selectedCategory.value) list = list.filter(p => p.category === selectedCategory.value)
+  if (searchQuery.value) {
+    const q = searchQuery.value.toLowerCase()
+    list = list.filter(p =>
+      p.title.toLowerCase().includes(q) ||
+      (p.artist_name || '').toLowerCase().includes(q) ||
+      (p.category || '').toLowerCase().includes(q)
+    )
+  }
+  return list
 })
+
+const categories = computed(() => [...new Set(products.value.map(p => p.category).filter(Boolean))])
+
+async function handleAddToCart(product) {
+  addingId.value = product.id
+  try {
+    await cartStore.addItem(product.id)
+  } catch (e) {
+    alert(e.message)
+  } finally {
+    addingId.value = null
+  }
+}
 </script>
 
 <style scoped>

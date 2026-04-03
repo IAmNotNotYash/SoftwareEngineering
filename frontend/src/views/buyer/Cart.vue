@@ -4,21 +4,21 @@
     <div class="page-container">
       <h1 class="page-title">Your Cart</h1>
 
-      <div class="cart-layout" v-if="cartState.items.length > 0">
+      <div class="cart-layout" v-if="cartStore.items.length > 0">
         <!-- Cart Items List -->
         <div class="cart-items">
-          <div v-for="item in cartState.items" :key="item.id" class="cart-card">
+          <div v-for="item in cartStore.items" :key="item.id" class="cart-card">
             <div class="item-img" :style="{ backgroundImage: `url(${item.image})` }"></div>
             <div class="item-details">
               <h3 class="item-title">{{ item.title }}</h3>
               <p class="item-artist">{{ item.artist }}</p>
               <div class="item-actions">
                 <div class="quantity-controls">
-                  <button @click="cartState.updateQuantity(item.id, -1)">-</button>
+                  <button @click="cartStore.updateItem(item.id, item.quantity - 1)" :disabled="item.quantity <= 1">-</button>
                   <span>{{ item.quantity }}</span>
-                  <button @click="cartState.updateQuantity(item.id, 1)">+</button>
+                  <button @click="cartStore.updateItem(item.id, item.quantity + 1)">+</button>
                 </div>
-                <button class="remove-btn" @click="cartState.removeItem(item.id)">Remove</button>
+                <button class="remove-btn" @click="cartStore.removeItem(item.id)">Remove</button>
               </div>
             </div>
             <div class="item-price">
@@ -32,16 +32,16 @@
           <h2>Order Summary</h2>
           <div class="summary-row">
             <span>Subtotal</span>
-            <span>₹{{ cartSubtotal.toLocaleString('en-IN') }}</span>
+            <span>₹{{ cartStore.subtotal.toLocaleString('en-IN') }}</span>
           </div>
           <div class="summary-row">
             <span>Shipping</span>
-            <span>₹{{ cartState.shipping.toLocaleString('en-IN') }}</span>
+            <span>₹{{ cartStore.shipping.toLocaleString('en-IN') }}</span>
           </div>
           <div class="summary-divider"></div>
           <div class="summary-row total-row">
             <span>Total</span>
-            <span>₹{{ cartTotal.toLocaleString('en-IN') }}</span>
+            <span>₹{{ cartStore.total.toLocaleString('en-IN') }}</span>
           </div>
           <RouterLink to="/buyer/checkout" class="checkout-btn" style="display:block; text-decoration:none; text-align:center;">Proceed to Checkout</RouterLink>
           
@@ -65,8 +65,13 @@
 </template>
 
 <script setup>
+import { onMounted } from 'vue'
 import BuyerNavbar from '../../components/BuyerNavbar.vue'
-import { cartState, cartSubtotal, cartTotal } from '../../store/cart.js'
+import { useCartStore } from '../../stores/cart.js'
+
+const cartStore = useCartStore()
+
+onMounted(() => cartStore.loadCart())
 </script>
 
 <style scoped>

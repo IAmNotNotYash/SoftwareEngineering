@@ -77,12 +77,13 @@
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { reactive, ref, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../../stores/auth'
 import { loginAPI } from '../../api/auth'
 
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 
 const form = reactive({
@@ -92,6 +93,12 @@ const form = reactive({
 
 const rememberMe = ref(true)
 const statusMessage = ref('')
+
+onMounted(() => {
+  if (route.query.msg === 'blocked') {
+    statusMessage.value = 'Your session has ended or your account has been blocked.'
+  }
+})
 
 async function handleLogin() {
   statusMessage.value = 'Logging in...'
