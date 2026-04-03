@@ -1,0 +1,2984 @@
+openapi: 3.0.3
+info:
+  title: Kala Platform API
+  description: |
+    REST API for the Kala artisan marketplace platform. Kala connects independent
+    artists (sellers) with buyers of handcrafted goods. The API serves three
+    distinct personas:
+
+    - **Buyer** — browse artists, products and catalogues; manage cart, orders, profile, and follows
+    - **Artist** — manage products, catalogues, orders, subscriber broadcasts, and stories
+    - **Admin** — oversee platform users, verify artists, manage orders, and view analytics
+
+    ## Authentication
+    All protected endpoints require a Bearer JWT token in the Authorization header.
+    Tokens are obtained via `POST /auth/login`. The token payload includes `user_id`,
+    `role` (`buyer` | `artist` | `admin`), and `exp`.
+
+    ## Base URL
+    `https://api.kala.in/v1`
+
+    ## Error Format
+    All error responses follow a consistent envelope:
+    ```json
+    {
+      "error": {
+        "code": "RESOURCE_NOT_FOUND",
+        "message": "The requested product does not exist.",
+        "details": {}
+      }
+    }
+    ```
+
+    ## Pagination
+    List endpoints that may return large result sets support cursor-based pagination
+    via `limit` and `cursor` query parameters. Responses include a `next_cursor`
+    field when more results are available.
+  version: 1.0.0
+  contact:
+    name: Kala Engineering
+    email: engineering@kala.in
+  license:
+    name: Proprietary
+
+servers:
+  - url: https://api.kala.in/v1
+    description: Production
+  - url: https://staging-api.kala.in/v1
+    description: Staging
+  - url: http://localhost:5000/v1
+    description: Local development
+
+tags:
+  - name: Auth
+    description: Registration, login, and token management
+  - name: Buyer — Profile
+    description: Buyer profile, addresses, and payment methods
+  - name: Buyer — Discovery
+    description: Browse artists, products, and catalogues
+  - name: Buyer — Cart
+    description: Shopping cart management
+  - name: Buyer — Orders
+    description: Order placement and tracking
+  - name: Buyer — Social
+    description: Following artists and leaving reviews
+  - name: Artist — Profile
+    description: Artist public profile management
+  - name: Artist — Products
+    description: Product listing and management
+  - name: Artist — Catalogues
+    description: Catalogue creation and management
+  - name: Artist — Orders
+    description: Receiving and fulfilling orders
+  - name: Artist — Content
+    description: Stories and insight posts
+  - name: Artist — Broadcasts
+    description: Subscriber broadcast messages
+  - name: Artist — Analytics
+    description: Artist performance metrics and AI summaries
+  - name: Admin — Users
+    description: Artist verification and user suspension
+  - name: Admin — Orders
+    description: Platform-wide order oversight
+  - name: Admin — Analytics
+    description: Platform analytics and AI insights
+
+# ─────────────────────────────────────────────────────────────────────────────
+# REUSABLE COMPONENTS
+# ─────────────────────────────────────────────────────────────────────────────
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    PathId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: UUID of the resource
+    QueryLimit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        default: 20
+        minimum: 1
+        maximum: 100
+      description: Maximum number of results to return
+    QueryCursor:
+      name: cursor
+      in: query
+      schema:
+        type: string
+      description: Pagination cursor from the previous response
+
+  schemas:
+    # ── Shared primitives ──────────────────────────────────────────────────
+    PaginationMeta:
+      type: object
+      properties:
+        total:
+          type: integer
+          description: Total number of matching records
+        limit:
+          type: integer
+        next_cursor:
+          type: string
+          nullable: true
+          description: Pass this value as `cursor` in the next request. Null when no more pages.
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              example: RESOURCE_NOT_FOUND
+            message:
+              type: string
+              example: The requested product does not exist.
+            details:
+              type: object
+
+    # ── Auth ───────────────────────────────────────────────────────────────
+    RegisterRequest:
+      type: object
+      required: [email, password, role, full_name]
+      properties:
+        email:
+          type: string
+          format: email
+          example: priya@nilahandlooms.com
+        password:
+          type: string
+          minLength: 8
+          example: securepassword123
+        role:
+          type: string
+          enum: [buyer, artist]
+          example: artist
+        full_name:
+          type: string
+          example: Priya Sharma
+        brand_name:
+          type: string
+          description: Required when role is artist
+          example: Nila Handlooms
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: JWT Bearer token
+        user:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            email:
+              type: string
+            role:
+              type: string
+              enum: [buyer, artist, admin]
+
+    # ── User / Profile ─────────────────────────────────────────────────────
+    ArtistProfilePublic:
+      type: object
+      description: Public-facing artist profile returned to buyers
+      properties:
+        id:
+          type: string
+          format: uuid
+        brand_name:
+          type: string
+          example: Luna Ceramics
+        full_name:
+          type: string
+          example: Meera Krishnan
+        location:
+          type: string
+          example: Jaipur, Rajasthan
+        bio:
+          type: string
+        profile_image_url:
+          type: string
+          format: uri
+          nullable: true
+        cover_image_url:
+          type: string
+          format: uri
+          nullable: true
+        follower_count:
+          type: integer
+          example: 1240
+        verification_status:
+          type: string
+          enum: [pending, approved, rejected]
+        created_at:
+          type: string
+          format: date-time
+
+    ArtistProfilePrivate:
+      allOf:
+        - $ref: '#/components/schemas/ArtistProfilePublic'
+        - type: object
+          properties:
+            email:
+              type: string
+              format: email
+            rejection_reason:
+              type: string
+              nullable: true
+            verified_at:
+              type: string
+              format: date-time
+              nullable: true
+
+    BuyerProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        full_name:
+          type: string
+          example: Alex Doe
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+          example: "+91 98765 43210"
+        join_date:
+          type: string
+          format: date-time
+        stats:
+          type: object
+          properties:
+            followed_artists:
+              type: integer
+            favourite_products:
+              type: integer
+            recent_orders:
+              type: integer
+            upcoming_deliveries:
+              type: integer
+
+    Address:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        label:
+          type: string
+          example: Home
+        full_address:
+          type: string
+          example: 123 Artisan Valley
+        city:
+          type: string
+          example: Mumbai
+        state:
+          type: string
+          example: Maharashtra
+        pin_code:
+          type: string
+          example: "400032"
+        country:
+          type: string
+          example: India
+        is_default:
+          type: boolean
+
+    AddressInput:
+      type: object
+      required: [full_address, city, state, pin_code, country]
+      properties:
+        label:
+          type: string
+          example: Home
+        full_address:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        pin_code:
+          type: string
+        country:
+          type: string
+          default: India
+        is_default:
+          type: boolean
+          default: false
+
+    PaymentMethod:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        card_type:
+          type: string
+          example: Visa
+        last_4:
+          type: string
+          example: "4242"
+        expiry_month:
+          type: string
+          example: "12"
+        expiry_year:
+          type: string
+          example: "2028"
+        is_default:
+          type: boolean
+
+    # ── Products ───────────────────────────────────────────────────────────
+    ProductImage:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        image_url:
+          type: string
+          format: uri
+        is_primary:
+          type: boolean
+        sort_order:
+          type: integer
+
+    ProductSummary:
+      type: object
+      description: Compact product representation for cards and grids
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          example: Handcrafted Ceramic Vase
+        artist:
+          type: string
+          description: Artist brand name
+          example: Luna Ceramics
+        artist_id:
+          type: string
+          format: uuid
+        price:
+          type: number
+          format: decimal
+          example: 4500.00
+        category:
+          type: string
+          example: Home Decor
+        in_stock:
+          type: boolean
+        primary_image_url:
+          type: string
+          format: uri
+          nullable: true
+
+    ProductDetail:
+      allOf:
+        - $ref: '#/components/schemas/ProductSummary'
+        - type: object
+          properties:
+            description:
+              type: string
+            materials:
+              type: string
+              example: Stoneware clay, speckled matte glaze interior
+            dimensions:
+              type: string
+              example: 12in Height x 6in Diameter
+            images:
+              type: array
+              items:
+                $ref: '#/components/schemas/ProductImage'
+            created_at:
+              type: string
+              format: date-time
+
+    ProductInput:
+      type: object
+      required: [title, price]
+      properties:
+        title:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+        materials:
+          type: string
+        dimensions:
+          type: string
+        price:
+          type: number
+          format: decimal
+          minimum: 0
+        category:
+          type: string
+        in_stock:
+          type: boolean
+          default: true
+
+    # ── Catalogues ─────────────────────────────────────────────────────────
+    CatalogueSummary:
+      type: object
+      description: Compact catalogue card shown on buyer dashboard and artist catalogue list
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          example: The Earth Tones Collection
+        status:
+          type: string
+          enum: [draft, live, ended]
+        cover_photo_url:
+          type: string
+          format: uri
+          nullable: true
+        theme:
+          type: string
+          enum: [warm, earth, cool, dark]
+        published_at:
+          type: string
+          format: date-time
+          nullable: true
+        artist:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            brand_name:
+              type: string
+            profile_image_url:
+              type: string
+              format: uri
+              nullable: true
+        stats:
+          $ref: '#/components/schemas/CatalogueStats'
+
+    CatalogueDetail:
+      allOf:
+        - $ref: '#/components/schemas/CatalogueSummary'
+        - type: object
+          properties:
+            narrative:
+              type: string
+            philosophy:
+              type: string
+            artist_note:
+              type: string
+            launch_intent:
+              type: string
+              enum: [live, preview, preorder]
+            products:
+              type: array
+              items:
+                $ref: '#/components/schemas/ProductSummary'
+
+    CatalogueInput:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+          maxLength: 200
+        narrative:
+          type: string
+        philosophy:
+          type: string
+        artist_note:
+          type: string
+        theme:
+          type: string
+          enum: [warm, earth, cool, dark]
+          default: earth
+        launch_intent:
+          type: string
+          enum: [live, preview, preorder]
+          default: live
+        status:
+          type: string
+          enum: [draft, live, ended]
+          default: draft
+        product_ids:
+          type: array
+          description: Ordered list of product UUIDs to include in the catalogue
+          items:
+            type: string
+            format: uuid
+
+    CatalogueStats:
+      type: object
+      properties:
+        total_views:
+          type: integer
+          example: 24500
+        total_likes:
+          type: integer
+          example: 3200
+        total_revenue:
+          type: number
+          format: decimal
+          example: 45200.00
+        total_orders:
+          type: integer
+          example: 128
+
+    # ── Posts ──────────────────────────────────────────────────────────────
+    PostSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [story, insight]
+        title:
+          type: string
+        cover_image_url:
+          type: string
+          format: uri
+          nullable: true
+        excerpt:
+          type: string
+          description: First 200 characters of body, for card display
+        artist:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            brand_name:
+              type: string
+        published_at:
+          type: string
+          format: date-time
+
+    PostDetail:
+      allOf:
+        - $ref: '#/components/schemas/PostSummary'
+        - type: object
+          properties:
+            body:
+              type: string
+              description: Full article body in Markdown or HTML
+
+    PostInput:
+      type: object
+      required: [title, body, type]
+      properties:
+        type:
+          type: string
+          enum: [story, insight]
+        title:
+          type: string
+          maxLength: 300
+        body:
+          type: string
+        cover_image_url:
+          type: string
+          format: uri
+        is_published:
+          type: boolean
+          default: false
+
+    # ── Reviews ────────────────────────────────────────────────────────────
+    Review:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        buyer:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            full_name:
+              type: string
+        target_type:
+          type: string
+          enum: [product, catalogue]
+        target_id:
+          type: string
+          format: uuid
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          nullable: true
+        body:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    ReviewInput:
+      type: object
+      required: [body]
+      properties:
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          nullable: true
+        body:
+          type: string
+
+    # ── Cart ───────────────────────────────────────────────────────────────
+    CartItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        product:
+          $ref: '#/components/schemas/ProductSummary'
+        quantity:
+          type: integer
+          minimum: 1
+        line_total:
+          type: number
+          format: decimal
+          description: price × quantity
+
+    Cart:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CartItem'
+        subtotal:
+          type: number
+          format: decimal
+        shipping_cost:
+          type: number
+          format: decimal
+        total:
+          type: number
+          format: decimal
+
+    CartAddRequest:
+      type: object
+      required: [product_id, quantity]
+      properties:
+        product_id:
+          type: string
+          format: uuid
+        quantity:
+          type: integer
+          minimum: 1
+          default: 1
+
+    CartUpdateRequest:
+      type: object
+      required: [quantity]
+      properties:
+        quantity:
+          type: integer
+          minimum: 1
+
+    # ── Orders ─────────────────────────────────────────────────────────────
+    OrderItem:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        product_id:
+          type: string
+          format: uuid
+          nullable: true
+        product_title:
+          type: string
+        product_image_url:
+          type: string
+          format: uri
+          nullable: true
+        artist_name:
+          type: string
+        price_at_purchase:
+          type: number
+          format: decimal
+        quantity:
+          type: integer
+
+    OrderTrackingEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        event:
+          type: string
+          enum: [confirmed, dispatched, out_for_delivery, delivered, cancelled]
+        note:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    OrderSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        order_number:
+          type: string
+          example: ORD-99382
+        status:
+          type: string
+          enum: [pending, processing, shipped, delivered, cancelled]
+        total:
+          type: number
+          format: decimal
+        item_count:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+        artist:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            brand_name:
+              type: string
+
+    OrderDetail:
+      allOf:
+        - $ref: '#/components/schemas/OrderSummary'
+        - type: object
+          properties:
+            buyer:
+              type: object
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                full_name:
+                  type: string
+            subtotal:
+              type: number
+              format: decimal
+            shipping_cost:
+              type: number
+              format: decimal
+            shipping_address:
+              type: object
+              description: Address snapshot at time of purchase
+              properties:
+                full_address:
+                  type: string
+                city:
+                  type: string
+                state:
+                  type: string
+                pin_code:
+                  type: string
+                country:
+                  type: string
+            payment_snapshot:
+              type: object
+              properties:
+                method:
+                  type: string
+                  example: card
+                card_type:
+                  type: string
+                  example: Visa
+                last_4:
+                  type: string
+                  example: "4242"
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/OrderItem'
+            tracking:
+              type: array
+              items:
+                $ref: '#/components/schemas/OrderTrackingEvent'
+
+    CheckoutRequest:
+      type: object
+      required: [shipping, payment]
+      properties:
+        shipping:
+          type: object
+          required: [address]
+          properties:
+            address_id:
+              type: string
+              format: uuid
+              description: Use an existing saved address
+            address:
+              $ref: '#/components/schemas/AddressInput'
+              description: Provide a new address inline (used when address_id is not given)
+        payment:
+          type: object
+          required: [method]
+          properties:
+            method:
+              type: string
+              enum: [card, upi]
+            payment_method_id:
+              type: string
+              format: uuid
+              description: Use a saved card
+            upi_id:
+              type: string
+              example: name@okaxis
+              description: Required when method is upi
+
+    # ── Broadcasts ─────────────────────────────────────────────────────────
+    Broadcast:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        catalogue_id:
+          type: string
+          format: uuid
+          nullable: true
+        message:
+          type: string
+        intent:
+          type: string
+          enum: [launch, preorder, flash_sale, exclusive_reveal]
+        platforms:
+          type: array
+          items:
+            type: string
+            enum: [email, instagram, facebook, telegram]
+        status:
+          type: string
+          enum: [draft, sent, failed]
+        sent_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    BroadcastInput:
+      type: object
+      required: [message, intent, platforms]
+      properties:
+        catalogue_id:
+          type: string
+          format: uuid
+          nullable: true
+        message:
+          type: string
+        intent:
+          type: string
+          enum: [launch, preorder, flash_sale, exclusive_reveal]
+        platforms:
+          type: array
+          items:
+            type: string
+            enum: [email, instagram, facebook, telegram]
+        scheduled_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: If provided, the broadcast is queued for future delivery
+
+    # ── Analytics ──────────────────────────────────────────────────────────
+    ArtistAnalytics:
+      type: object
+      properties:
+        kpis:
+          type: object
+          properties:
+            total_revenue:
+              type: number
+              format: decimal
+            total_orders:
+              type: integer
+            catalogue_views:
+              type: integer
+            story_engagement_rate:
+              type: string
+              example: "8.4%"
+        revenue_trend:
+          type: array
+          items:
+            type: object
+            properties:
+              month:
+                type: string
+                example: "2026-03"
+              revenue:
+                type: number
+              orders:
+                type: integer
+              catalogue_views:
+                type: integer
+        ai_summary:
+          type: string
+          nullable: true
+          description: AI-generated natural language performance summary
+        sentiment_summary:
+          type: string
+          nullable: true
+          description: AI-generated analysis of buyer review sentiments
+
+    AdminAnalytics:
+      type: object
+      properties:
+        kpis:
+          type: object
+          properties:
+            total_revenue:
+              type: number
+              format: decimal
+            total_orders:
+              type: integer
+            registered_artists:
+              type: integer
+            registered_buyers:
+              type: integer
+            avg_order_value:
+              type: number
+              format: decimal
+            conversion_rate:
+              type: string
+              example: "4.2%"
+        revenue_trend:
+          type: array
+          items:
+            type: object
+            properties:
+              month:
+                type: string
+              revenue:
+                type: number
+        orders_trend:
+          type: array
+          items:
+            type: object
+            properties:
+              month:
+                type: string
+              orders:
+                type: integer
+        artist_breakdown:
+          type: array
+          items:
+            type: object
+            properties:
+              artist_name:
+                type: string
+              revenue:
+                type: number
+              orders:
+                type: integer
+        orders_by_status:
+          type: array
+          items:
+            type: object
+            properties:
+              status:
+                type: string
+              count:
+                type: integer
+        ai_summary:
+          type: string
+          nullable: true
+
+    # ── Admin ──────────────────────────────────────────────────────────────
+    AdminArtistRow:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        full_name:
+          type: string
+        brand_name:
+          type: string
+        email:
+          type: string
+        verification_status:
+          type: string
+          enum: [pending, approved, rejected]
+        is_suspended:
+          type: boolean
+        joined:
+          type: string
+          format: date-time
+
+    AdminBuyerRow:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        full_name:
+          type: string
+        email:
+          type: string
+        order_count:
+          type: integer
+        is_suspended:
+          type: boolean
+        joined:
+          type: string
+          format: date-time
+
+    AdminOrderRow:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        order_number:
+          type: string
+          example: ORD-001
+        buyer_name:
+          type: string
+        artist_name:
+          type: string
+        total:
+          type: number
+          format: decimal
+        status:
+          type: string
+          enum: [pending, processing, shipped, delivered, cancelled]
+        created_at:
+          type: string
+          format: date-time
+
+# ─────────────────────────────────────────────────────────────────────────────
+# PATHS
+# ─────────────────────────────────────────────────────────────────────────────
+paths:
+
+  # ════════════════════════════════════════════════════════════
+  # AUTH
+  # ════════════════════════════════════════════════════════════
+
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new user
+      description: |
+        Creates a new user account. If `role` is `artist`, also creates an
+        `ARTIST_PROFILES` row with `verification_status = pending` and a
+        corresponding `BUYER_PROFILES` row is NOT created. If `role` is `buyer`,
+        a `BUYER_PROFILES` row is created.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            examples:
+              buyer:
+                summary: Buyer registration
+                value:
+                  email: alex@example.com
+                  password: securepass123
+                  role: buyer
+                  full_name: Alex Doe
+              artist:
+                summary: Artist registration
+                value:
+                  email: priya@nilahandlooms.com
+                  password: securepass123
+                  role: artist
+                  full_name: Priya Sharma
+                  brand_name: Nila Handlooms
+      responses:
+        '201':
+          description: Account created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '409':
+          description: Email already registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation error (missing fields, weak password, etc.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Log in and receive a JWT
+      description: |
+        Authenticates a user by email and password. Returns a JWT token to be
+        used as a Bearer token on all subsequent protected requests. Suspended
+        users receive a 403 response.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: buyer@example.com
+              password: password123
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Account is suspended
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Get the currently authenticated user
+      description: Returns basic identity data (id, email, role) for the token holder.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Current user info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  email:
+                    type: string
+                  role:
+                    type: string
+        '401':
+          description: Missing or invalid token
+
+  # ════════════════════════════════════════════════════════════
+  # BUYER — PROFILE
+  # ════════════════════════════════════════════════════════════
+
+  /buyer/profile:
+    get:
+      tags: [Buyer — Profile]
+      summary: Get the authenticated buyer's profile
+      description: |
+        Returns full buyer profile including personal info, activity KPIs
+        (followed artists, favourite products, recent orders, upcoming deliveries),
+        default shipping address, and default payment method.
+        Served by the Buyer Profile page (`/buyer/profile`).
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Buyer profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BuyerProfile'
+
+    patch:
+      tags: [Buyer — Profile]
+      summary: Update buyer profile fields
+      description: Partial update of full_name and/or phone.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                full_name:
+                  type: string
+                phone:
+                  type: string
+      responses:
+        '200':
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BuyerProfile'
+
+  /buyer/addresses:
+    get:
+      tags: [Buyer — Profile]
+      summary: List saved addresses
+      description: Returns all shipping addresses for the authenticated buyer. Used at checkout to present the address selection cards.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of addresses
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  addresses:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Address'
+
+    post:
+      tags: [Buyer — Profile]
+      summary: Add a new address
+      description: Creates a new shipping address for the buyer. If `is_default` is true, any existing default address is unset.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddressInput'
+      responses:
+        '201':
+          description: Address created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Address'
+
+  /buyer/addresses/{id}:
+    patch:
+      tags: [Buyer — Profile]
+      summary: Update a saved address
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddressInput'
+      responses:
+        '200':
+          description: Updated address
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Address'
+    delete:
+      tags: [Buyer — Profile]
+      summary: Delete a saved address
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '204':
+          description: Address deleted
+
+  /buyer/payment-methods:
+    get:
+      tags: [Buyer — Profile]
+      summary: List saved payment methods
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Payment methods
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  payment_methods:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PaymentMethod'
+
+    post:
+      tags: [Buyer — Profile]
+      summary: Save a new payment method
+      description: |
+        Saves a tokenised card reference. In production this endpoint receives
+        a payment gateway token (e.g., Razorpay card token) and stores only
+        the display metadata (last_4, card_type, expiry).
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [card_type, last_4, expiry_month, expiry_year]
+              properties:
+                card_type:
+                  type: string
+                last_4:
+                  type: string
+                expiry_month:
+                  type: string
+                expiry_year:
+                  type: string
+                is_default:
+                  type: boolean
+                  default: false
+      responses:
+        '201':
+          description: Payment method saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentMethod'
+
+  /buyer/payment-methods/{id}:
+    delete:
+      tags: [Buyer — Profile]
+      summary: Remove a saved payment method
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '204':
+          description: Deleted
+
+  # ════════════════════════════════════════════════════════════
+  # BUYER — DISCOVERY
+  # ════════════════════════════════════════════════════════════
+
+  /products:
+    get:
+      tags: [Buyer — Discovery]
+      summary: Browse all products
+      description: |
+        Returns a paginated list of all in-stock, active products. Supports full-text
+        search and category filtering. Used by the Buyer Products page (`/buyer/products`)
+        and the "Trending Handcrafts" section on the dashboard.
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+          description: Full-text search across title, artist name, and category
+        - name: category
+          in: query
+          schema:
+            type: string
+          description: Filter by product category
+        - name: artist_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+          description: Filter by a specific artist
+        - $ref: '#/components/parameters/QueryLimit'
+        - $ref: '#/components/parameters/QueryCursor'
+      responses:
+        '200':
+          description: Product list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  products:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProductSummary'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+
+  /products/{id}:
+    get:
+      tags: [Buyer — Discovery]
+      summary: Get full product details
+      description: |
+        Returns complete product information including gallery images, description,
+        materials, dimensions, and stock status. Used by Buyer Product Details page
+        (`/buyer/product/:id`).
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '200':
+          description: Product detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductDetail'
+        '404':
+          description: Product not found
+
+  /products/{id}/reviews:
+    get:
+      tags: [Buyer — Discovery]
+      summary: Get reviews for a product
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+        - $ref: '#/components/parameters/QueryLimit'
+        - $ref: '#/components/parameters/QueryCursor'
+      responses:
+        '200':
+          description: Reviews for this product
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reviews:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Review'
+                  average_rating:
+                    type: number
+                    format: decimal
+                    nullable: true
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+
+    post:
+      tags: [Buyer — Social]
+      summary: Submit a review for a product
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewInput'
+      responses:
+        '201':
+          description: Review submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Review'
+        '409':
+          description: Buyer has already reviewed this product
+
+  /artists:
+    get:
+      tags: [Buyer — Discovery]
+      summary: Discover artists
+      description: |
+        Returns a paginated list of approved, active artists. Used by the
+        "Discover Creators" section on the Buyer Dashboard and the artist
+        exploration feature.
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+          description: Search by brand name, full name, or location
+        - $ref: '#/components/parameters/QueryLimit'
+        - $ref: '#/components/parameters/QueryCursor'
+      responses:
+        '200':
+          description: Artist list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  artists:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ArtistProfilePublic'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+
+  /artists/{id}:
+    get:
+      tags: [Buyer — Discovery]
+      summary: Get a public artist profile
+      description: |
+        Returns full public profile including bio, images, follower count, and
+        all listed products. Used by the Buyer Artist Profile page
+        (`/buyer/artist/:id`).
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '200':
+          description: Artist profile with products
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ArtistProfilePublic'
+                  - type: object
+                    properties:
+                      products:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/ProductSummary'
+                      is_following:
+                        type: boolean
+                        description: Whether the authenticated buyer is following this artist
+        '404':
+          description: Artist not found
+
+  /artists/{id}/catalogues:
+    get:
+      tags: [Buyer — Discovery]
+      summary: Get all live catalogues for an artist
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+        - $ref: '#/components/parameters/QueryLimit'
+        - $ref: '#/components/parameters/QueryCursor'
+      responses:
+        '200':
+          description: Artist's live catalogues
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  catalogues:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CatalogueSummary'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+
+  /catalogues:
+    get:
+      tags: [Buyer — Discovery]
+      summary: Browse all live catalogues
+      description: |
+        Returns live catalogues from all artists, most recently published first.
+        When called with an authenticated buyer token, can be filtered to only
+        show catalogues from followed artists (used in Buyer Dashboard's
+        "New Catalogue from Your Creators" section).
+      parameters:
+        - name: followed_only
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: If true and authenticated as a buyer, returns only catalogues from followed artists
+        - $ref: '#/components/parameters/QueryLimit'
+        - $ref: '#/components/parameters/QueryCursor'
+      responses:
+        '200':
+          description: Catalogue list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  catalogues:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CatalogueSummary'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+
+  /catalogues/{id}:
+    get:
+      tags: [Buyer — Discovery]
+      summary: Get full catalogue details
+      description: |
+        Returns the complete catalogue including philosophy, artist note, theme,
+        and all linked products. Also triggers a view event (inserts into
+        CATALOGUE_VIEWS and increments CATALOGUE_STATS.total_views).
+        Used by Buyer Catalogue page (`/buyer/catalogue/:id`).
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '200':
+          description: Catalogue detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogueDetail'
+        '404':
+          description: Catalogue not found or not live
+
+  /catalogues/{id}/like:
+    post:
+      tags: [Buyer — Social]
+      summary: Like a catalogue
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '200':
+          description: Like recorded
+        '409':
+          description: Already liked
+
+    delete:
+      tags: [Buyer — Social]
+      summary: Unlike a catalogue
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '204':
+          description: Like removed
+
+  /catalogues/{id}/reviews:
+    get:
+      tags: [Buyer — Discovery]
+      summary: Get reviews for a catalogue
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+        - $ref: '#/components/parameters/QueryLimit'
+        - $ref: '#/components/parameters/QueryCursor'
+      responses:
+        '200':
+          description: Reviews
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reviews:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Review'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+
+    post:
+      tags: [Buyer — Social]
+      summary: Submit a review for a catalogue
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReviewInput'
+      responses:
+        '201':
+          description: Review submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Review'
+
+  /posts:
+    get:
+      tags: [Buyer — Discovery]
+      summary: Browse published posts (stories and insights)
+      description: |
+        Returns published posts from all artists. Used for the "Behind the Art"
+        insights section on the Buyer Dashboard. Filter by `type=insight` for
+        cultural articles.
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [story, insight]
+          description: Filter by post type
+        - name: artist_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/QueryLimit'
+        - $ref: '#/components/parameters/QueryCursor'
+      responses:
+        '200':
+          description: Posts list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  posts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PostSummary'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+
+  /posts/{id}:
+    get:
+      tags: [Buyer — Discovery]
+      summary: Get full post/insight article
+      description: Returns the complete post body for the Buyer Insight detail page (`/buyer/insight/:id`).
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '200':
+          description: Post detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostDetail'
+        '404':
+          description: Post not found
+
+  # ════════════════════════════════════════════════════════════
+  # BUYER — CART
+  # ════════════════════════════════════════════════════════════
+
+  /buyer/cart:
+    get:
+      tags: [Buyer — Cart]
+      summary: Get the authenticated buyer's cart
+      description: |
+        Returns all cart items with full product details and computed totals
+        (subtotal, shipping, total). Used by Buyer Cart page and Checkout summary.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Cart contents
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
+
+    post:
+      tags: [Buyer — Cart]
+      summary: Add a product to the cart
+      description: |
+        If the product is already in the cart, increments the quantity by the
+        given amount. If not, creates a new cart item row.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CartAddRequest'
+      responses:
+        '200':
+          description: Cart updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
+        '404':
+          description: Product not found or out of stock
+
+    delete:
+      tags: [Buyer — Cart]
+      summary: Clear the entire cart
+      description: Removes all items from the cart. Called after successful order placement.
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: Cart cleared
+
+  /buyer/cart/{id}:
+    patch:
+      tags: [Buyer — Cart]
+      summary: Update quantity of a cart item
+      description: Sets the quantity of a specific cart item. To effectively remove, use the DELETE endpoint.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Cart item ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CartUpdateRequest'
+      responses:
+        '200':
+          description: Updated cart
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
+
+    delete:
+      tags: [Buyer — Cart]
+      summary: Remove a specific item from the cart
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Cart after removal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
+
+  # ════════════════════════════════════════════════════════════
+  # BUYER — ORDERS
+  # ════════════════════════════════════════════════════════════
+
+  /buyer/orders:
+    get:
+      tags: [Buyer — Orders]
+      summary: List the buyer's orders
+      description: |
+        Returns all orders placed by the authenticated buyer, most recent first.
+        Used by Buyer Orders page (`/buyer/orders`).
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, processing, shipped, delivered, cancelled]
+        - $ref: '#/components/parameters/QueryLimit'
+        - $ref: '#/components/parameters/QueryCursor'
+      responses:
+        '200':
+          description: Buyer order list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  orders:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OrderSummary'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+
+    post:
+      tags: [Buyer — Orders]
+      summary: Place an order (checkout)
+      description: |
+        Creates an order from the buyer's current cart. Validates product availability,
+        creates `ORDERS` and `ORDER_ITEMS` records with snapshots, inserts the initial
+        `ORDER_TRACKING_EVENTS` row (`confirmed`), clears the cart, and returns the
+        new order. Used by the Buyer Checkout page on "Pay & Place Order".
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckoutRequest'
+      responses:
+        '201':
+          description: Order placed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetail'
+        '400':
+          description: Cart is empty or item is out of stock
+        '422':
+          description: Validation error in shipping or payment data
+
+  /buyer/orders/{id}:
+    get:
+      tags: [Buyer — Orders]
+      summary: Get full order details including tracking
+      description: Returns order details with items and full tracking timeline.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '200':
+          description: Order detail with tracking
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetail'
+        '404':
+          description: Order not found
+
+  # ════════════════════════════════════════════════════════════
+  # BUYER — SOCIAL (Follows)
+  # ════════════════════════════════════════════════════════════
+
+  /buyer/following:
+    get:
+      tags: [Buyer — Social]
+      summary: List artists the buyer follows
+      description: Returns all artists currently followed. Used by Buyer Following page (`/buyer/following`).
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Followed artists
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  artists:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ArtistProfilePublic'
+
+  /buyer/following/{artist_id}:
+    put:
+      tags: [Buyer — Social]
+      summary: Follow an artist
+      description: Creates a FOLLOWS record. Idempotent — following an already-followed artist returns 200.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: artist_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Now following
+        '404':
+          description: Artist not found
+
+    delete:
+      tags: [Buyer — Social]
+      summary: Unfollow an artist
+      description: Deletes the FOLLOWS record. Used on the Buyer Following page's "Unfollow" action.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: artist_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Unfollowed
+
+  # ════════════════════════════════════════════════════════════
+  # ARTIST — PROFILE
+  # ════════════════════════════════════════════════════════════
+
+  /artist/profile:
+    get:
+      tags: [Artist — Profile]
+      summary: Get the artist's own profile
+      description: Returns the private profile view including verification status and rejection reason.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Artist profile (private view)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtistProfilePrivate'
+
+    patch:
+      tags: [Artist — Profile]
+      summary: Update artist profile
+      description: |
+        Allows updating brand_name, bio, location, profile_image_url, and
+        cover_image_url. Full_name changes must go through a separate
+        identity verification flow.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                brand_name:
+                  type: string
+                bio:
+                  type: string
+                location:
+                  type: string
+                profile_image_url:
+                  type: string
+                  format: uri
+                cover_image_url:
+                  type: string
+                  format: uri
+      responses:
+        '200':
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtistProfilePrivate'
+
+  # ════════════════════════════════════════════════════════════
+  # ARTIST — PRODUCTS
+  # ════════════════════════════════════════════════════════════
+
+  /artist/products:
+    get:
+      tags: [Artist — Products]
+      summary: List the artist's products
+      description: Returns all products listed by the authenticated artist, including drafts and out-of-stock items.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/QueryLimit'
+        - $ref: '#/components/parameters/QueryCursor'
+      responses:
+        '200':
+          description: Artist product list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  products:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProductDetail'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+
+    post:
+      tags: [Artist — Products]
+      summary: Create a new product
+      description: |
+        Creates a new product listing. Images are uploaded separately via
+        `POST /artist/products/{id}/images`. Used by the "Add Product" modal
+        on the Artist Products page.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductInput'
+      responses:
+        '201':
+          description: Product created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductDetail'
+
+  /artist/products/{id}:
+    patch:
+      tags: [Artist — Products]
+      summary: Update a product
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductInput'
+      responses:
+        '200':
+          description: Updated product
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductDetail'
+
+    delete:
+      tags: [Artist — Products]
+      summary: Soft-delete a product
+      description: Sets `is_deleted = true`. Product disappears from buyer-facing listings but order history is preserved.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '204':
+          description: Product deleted
+
+  /artist/products/{id}/images:
+    post:
+      tags: [Artist — Products]
+      summary: Upload product images
+      description: |
+        Accepts multipart form data with one or more image files. Stores them
+        and returns the created image records. The first image uploaded is
+        automatically set as primary if no primary exists.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                images:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+      responses:
+        '201':
+          description: Images uploaded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  images:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ProductImage'
+
+  /artist/products/{id}/images/{image_id}:
+    delete:
+      tags: [Artist — Products]
+      summary: Remove a product image
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+        - name: image_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Image removed
+
+  # ════════════════════════════════════════════════════════════
+  # ARTIST — CATALOGUES
+  # ════════════════════════════════════════════════════════════
+
+  /artist/catalogues:
+    get:
+      tags: [Artist — Catalogues]
+      summary: List all of the artist's catalogues
+      description: |
+        Returns all catalogues (draft, live, and ended) for the authenticated artist,
+        including stats. Used by Artist Catalogues page (`/artist/catalogues`).
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Catalogue list with stats
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  catalogues:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CatalogueSummary'
+
+    post:
+      tags: [Artist — Catalogues]
+      summary: Create a new catalogue
+      description: |
+        Creates a catalogue (defaults to `draft` status). Product associations are
+        provided in the `product_ids` array. Cover photo is uploaded separately.
+        Used by the 4-step Catalogue Builder (`/artist/newcatalogue`).
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CatalogueInput'
+      responses:
+        '201':
+          description: Catalogue created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogueDetail'
+
+  /artist/catalogues/{id}:
+    get:
+      tags: [Artist — Catalogues]
+      summary: Get a specific catalogue (artist view)
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '200':
+          description: Catalogue detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogueDetail'
+
+    patch:
+      tags: [Artist — Catalogues]
+      summary: Update a catalogue
+      description: |
+        Partial update of any catalogue field. Setting `status` to `live` publishes
+        the catalogue (sets `published_at` if not already set). Setting `status` to
+        `ended` closes the catalogue.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CatalogueInput'
+      responses:
+        '200':
+          description: Updated catalogue
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogueDetail'
+
+    delete:
+      tags: [Artist — Catalogues]
+      summary: Delete a catalogue (draft only)
+      description: Only draft catalogues can be deleted. Live and ended catalogues must be set to `ended` via PATCH.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '204':
+          description: Catalogue deleted
+        '400':
+          description: Cannot delete a live or ended catalogue
+
+  /artist/catalogues/{id}/cover:
+    post:
+      tags: [Artist — Catalogues]
+      summary: Upload catalogue cover image
+      description: Accepts a single image file and sets it as the catalogue cover.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                cover:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Cover image updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  cover_photo_url:
+                    type: string
+                    format: uri
+
+  # ════════════════════════════════════════════════════════════
+  # ARTIST — ORDERS
+  # ════════════════════════════════════════════════════════════
+
+  /artist/orders:
+    get:
+      tags: [Artist — Orders]
+      summary: List orders received by the artist
+      description: |
+        Returns all orders for the authenticated artist, filterable by status.
+        Used by the Artist Orders Kanban page (`/artist/orders`).
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, processing, shipped, delivered, cancelled]
+      responses:
+        '200':
+          description: Artist order list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  orders:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OrderDetail'
+
+  /artist/orders/{id}/status:
+    patch:
+      tags: [Artist — Orders]
+      summary: Advance an order's status
+      description: |
+        Moves the order to the next status stage. Creates an
+        `ORDER_TRACKING_EVENTS` row for the new status. Valid transitions:
+        `pending → processing → shipped → delivered`. Artists cannot cancel
+        orders (that is a separate admin/buyer action).
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [processing, shipped, delivered]
+                note:
+                  type: string
+                  description: Optional note (e.g. tracking number)
+      responses:
+        '200':
+          description: Order status updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetail'
+        '400':
+          description: Invalid status transition
+
+  # ════════════════════════════════════════════════════════════
+  # ARTIST — CONTENT (Posts / Stories)
+  # ════════════════════════════════════════════════════════════
+
+  /artist/posts:
+    get:
+      tags: [Artist — Content]
+      summary: List all posts by the artist
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Artist's posts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  posts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PostDetail'
+
+    post:
+      tags: [Artist — Content]
+      summary: Create a new post (story or insight)
+      description: Used by the Artist Story composer (`/artist/story`).
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostInput'
+      responses:
+        '201':
+          description: Post created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostDetail'
+
+  /artist/posts/{id}:
+    patch:
+      tags: [Artist — Content]
+      summary: Update a post
+      description: Setting `is_published = true` publishes the post and sets `published_at`.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostInput'
+      responses:
+        '200':
+          description: Updated post
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostDetail'
+
+    delete:
+      tags: [Artist — Content]
+      summary: Delete a post
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '204':
+          description: Post deleted
+
+  # ════════════════════════════════════════════════════════════
+  # ARTIST — BROADCASTS
+  # ════════════════════════════════════════════════════════════
+
+  /artist/broadcasts:
+    get:
+      tags: [Artist — Broadcasts]
+      summary: List sent broadcasts
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/QueryLimit'
+        - $ref: '#/components/parameters/QueryCursor'
+      responses:
+        '200':
+          description: Broadcast history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  broadcasts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Broadcast'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+
+    post:
+      tags: [Artist — Broadcasts]
+      summary: Send a broadcast to subscribers
+      description: |
+        Creates and immediately sends (or schedules) a broadcast to all followers.
+        Triggers the cross-platform delivery pipeline based on the `platforms` array.
+        Used by the Subscribers & Broadcasts composer (`/artist/sendouts`).
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BroadcastInput'
+      responses:
+        '201':
+          description: Broadcast queued or sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Broadcast'
+
+  /artist/subscribers/stats:
+    get:
+      tags: [Artist — Broadcasts]
+      summary: Get subscriber audience counts
+      description: |
+        Returns the total follower count and trend (weekly growth).
+        Used by the audience overview cards on the Subscribers page.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Subscriber stats
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  followers:
+                    type: object
+                    properties:
+                      count:
+                        type: integer
+                      weekly_growth:
+                        type: integer
+
+  # ════════════════════════════════════════════════════════════
+  # ARTIST — ANALYTICS
+  # ════════════════════════════════════════════════════════════
+
+  /artist/analytics:
+    get:
+      tags: [Artist — Analytics]
+      summary: Get artist analytics and AI summary
+      description: |
+        Returns performance KPIs, monthly revenue and views trend data, and
+        AI-generated summaries (performance + sentiment). The AI summaries are
+        fetched from the latest `ANALYTICS_SNAPSHOTS` row; if none exists or the
+        existing one is stale (>24h), a new snapshot is generated asynchronously
+        and the previous summary is returned in the interim.
+        Used by Artist Dashboard chart and the Analytics section.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            example: "2026-03"
+          description: "YYYY-MM period. Defaults to current month."
+      responses:
+        '200':
+          description: Artist analytics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtistAnalytics'
+
+  /artist/analytics/refresh:
+    post:
+      tags: [Artist — Analytics]
+      summary: Force-refresh the AI analytics summary
+      description: Triggers a synchronous regeneration of the `ANALYTICS_SNAPSHOTS` row for this artist.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Fresh analytics snapshot
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ArtistAnalytics'
+
+  # ════════════════════════════════════════════════════════════
+  # ADMIN — USERS
+  # ════════════════════════════════════════════════════════════
+
+  /admin/verification:
+    get:
+      tags: [Admin — Users]
+      summary: Get the artist verification queue
+      description: |
+        Returns all artist profiles filterable by verification status.
+        Used by Admin Verification page (`/admin/verification`).
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, approved, rejected]
+          description: Filter by status tab
+      responses:
+        '200':
+          description: Verification queue
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  artists:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AdminArtistRow'
+
+  /admin/verification/{artist_id}/approve:
+    post:
+      tags: [Admin — Users]
+      summary: Approve an artist's verification
+      description: |
+        Sets `verification_status = approved`, records `verified_at` and
+        `verified_by`. The artist can now publish catalogues and products.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: artist_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Artist approved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminArtistRow'
+
+  /admin/verification/{artist_id}/reject:
+    post:
+      tags: [Admin — Users]
+      summary: Reject an artist's verification
+      description: Sets `verification_status = rejected` and stores the reason.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: artist_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  description: Optional explanation sent to the artist
+      responses:
+        '200':
+          description: Artist rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminArtistRow'
+
+  /admin/artists:
+    get:
+      tags: [Admin — Users]
+      summary: List all artists on the platform
+      description: Returns all artists with verification and suspension status. Supports search. Used by Admin Artists page.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+          description: Search by name, brand, or email
+        - $ref: '#/components/parameters/QueryLimit'
+        - $ref: '#/components/parameters/QueryCursor'
+      responses:
+        '200':
+          description: Artist table
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  artists:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AdminArtistRow'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+
+  /admin/artists/{id}/suspend:
+    post:
+      tags: [Admin — Users]
+      summary: Suspend an artist account
+      description: Sets `USERS.is_suspended = true` for the artist. The artist cannot log in while suspended.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '200':
+          description: Artist suspended
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminArtistRow'
+
+  /admin/artists/{id}/unsuspend:
+    post:
+      tags: [Admin — Users]
+      summary: Unsuspend an artist account
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '200':
+          description: Artist unsuspended
+
+  /admin/buyers:
+    get:
+      tags: [Admin — Users]
+      summary: List all buyers on the platform
+      description: Returns all buyers with order counts and suspension status. Used by Admin Buyers page.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+          description: Search by name or email
+        - $ref: '#/components/parameters/QueryLimit'
+        - $ref: '#/components/parameters/QueryCursor'
+      responses:
+        '200':
+          description: Buyer table
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  buyers:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AdminBuyerRow'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+
+  /admin/buyers/{id}/suspend:
+    post:
+      tags: [Admin — Users]
+      summary: Suspend a buyer account
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '200':
+          description: Buyer suspended
+
+  /admin/buyers/{id}/unsuspend:
+    post:
+      tags: [Admin — Users]
+      summary: Unsuspend a buyer account
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '200':
+          description: Buyer unsuspended
+
+  # ════════════════════════════════════════════════════════════
+  # ADMIN — ORDERS
+  # ════════════════════════════════════════════════════════════
+
+  /admin/orders:
+    get:
+      tags: [Admin — Orders]
+      summary: List all platform orders
+      description: |
+        Returns all orders across all artists and buyers. Supports search by
+        order number, buyer name, or artist name, and filter by status.
+        Used by Admin Orders page (`/admin/orders`).
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+          description: Search by order number, buyer name, or artist name
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, processing, shipped, delivered, cancelled]
+        - $ref: '#/components/parameters/QueryLimit'
+        - $ref: '#/components/parameters/QueryCursor'
+      responses:
+        '200':
+          description: Platform order list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  orders:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AdminOrderRow'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+
+  /admin/orders/{id}:
+    get:
+      tags: [Admin — Orders]
+      summary: Get full order details (admin view)
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PathId'
+      responses:
+        '200':
+          description: Full order detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderDetail'
+
+  # ════════════════════════════════════════════════════════════
+  # ADMIN — ANALYTICS
+  # ════════════════════════════════════════════════════════════
+
+  /admin/dashboard:
+    get:
+      tags: [Admin — Analytics]
+      summary: Get admin dashboard summary
+      description: |
+        Returns the KPIs displayed on the Admin Dashboard: total revenue,
+        total orders, registered artists, registered buyers, pending verifications,
+        and active stories. Also returns the 5 most recent orders for the
+        Recent Orders widget and the monthly revenue trend for the chart.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Dashboard data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  kpis:
+                    type: object
+                    properties:
+                      total_revenue:
+                        type: number
+                      total_orders:
+                        type: integer
+                      registered_artists:
+                        type: integer
+                      registered_buyers:
+                        type: integer
+                      pending_verifications:
+                        type: integer
+                      active_stories:
+                        type: integer
+                  recent_orders:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AdminOrderRow'
+                  revenue_trend:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        month:
+                          type: string
+                        revenue:
+                          type: number
+
+  /admin/analytics:
+    get:
+      tags: [Admin — Analytics]
+      summary: Get full platform analytics
+      description: |
+        Returns comprehensive platform analytics including all KPIs, revenue and
+        orders trends, per-artist breakdown, orders by status distribution, and
+        the AI-generated platform summary. Used by Admin Analytics page
+        (`/admin/analytics`) across all tabs.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: period
+          in: query
+          schema:
+            type: string
+            example: "2026-03"
+          description: "YYYY-MM period filter. Defaults to current month."
+      responses:
+        '200':
+          description: Platform analytics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminAnalytics'
+
+  /admin/analytics/refresh:
+    post:
+      tags: [Admin — Analytics]
+      summary: Force-refresh the platform AI analytics summary
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Refreshed analytics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminAnalytics'
+
+security:
+  - BearerAuth: []

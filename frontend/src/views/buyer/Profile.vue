@@ -3,34 +3,25 @@
   <div class="profile-page">
     <div class="header">
       <h1>My Profile</h1>
-      <p>Manage your personal information and shipping details.</p>
+      <p>Your account information on the Kala platform.</p>
     </div>
 
-    <div v-if="loading" class="loading-state">
-      <div class="spinner"></div>
-      <p>Loading your profile...</p>
-    </div>
-
-    <div v-else class="profile-content">
+    <div class="profile-content">
       <!-- Personal Info Section -->
       <section class="profile-section">
         <h2>Personal Information</h2>
         <div class="info-grid">
           <div class="info-group">
             <label>Full Name</label>
-            <p>{{ profile.name }}</p>
+            <p>{{ user?.name || '—' }}</p>
           </div>
           <div class="info-group">
             <label>Email Address</label>
-            <p>{{ profile.email }}</p>
+            <p>{{ user?.email || '—' }}</p>
           </div>
           <div class="info-group">
-            <label>Phone Number</label>
-            <p>{{ profile.phone }}</p>
-          </div>
-          <div class="info-group">
-            <label>Member Since</label>
-            <p>{{ profile.joinDate }}</p>
+            <label>Account Type</label>
+            <p style="text-transform: capitalize;">{{ user?.role || '—' }}</p>
           </div>
         </div>
       </section>
@@ -40,48 +31,12 @@
         <h2>My Activity</h2>
         <div class="kpi-grid">
           <div class="kpi-card">
-            <div class="kpi-label">Followed Artists</div>
-            <div class="kpi-value">{{ stats.followedArtists || 0 }}</div>
+            <div class="kpi-label">Items in Cart</div>
+            <div class="kpi-value">{{ cartStore.items.length }}</div>
           </div>
           <div class="kpi-card">
-            <div class="kpi-label">Favorite Products</div>
-            <div class="kpi-value">{{ stats.favoriteProducts || 0 }}</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-label">Recent Orders</div>
-            <div class="kpi-value">{{ stats.recentOrders || 0 }}</div>
-          </div>
-          <div class="kpi-card">
-            <div class="kpi-label">Upcoming Deliveries</div>
-            <div class="kpi-value text-highlight">{{ stats.upcomingDeliveries || 0 }}</div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Shipping Address Section -->
-      <section class="profile-section">
-        <div class="section-header">
-          <h2>Default Shipping Address</h2>
-          <button class="edit-btn">Edit</button>
-        </div>
-        <div class="address-card">
-          <p>{{ profile.shipping.address }}</p>
-          <p>{{ profile.shipping.city }}, {{ profile.shipping.state }} {{ profile.shipping.zip }}</p>
-          <p>{{ profile.shipping.country }}</p>
-        </div>
-      </section>
-
-      <!-- Payment Method Section -->
-      <section class="profile-section">
-        <div class="section-header">
-          <h2>Payment Method</h2>
-          <button class="edit-btn">Edit</button>
-        </div>
-        <div class="payment-card">
-          <div class="card-icon">💳</div>
-          <div class="card-details">
-            <p class="card-number">{{ profile.payment.cardType }} ending in •••• {{ profile.payment.last4 }}</p>
-            <p class="card-expiry">Expires {{ profile.payment.expiry }}</p>
+            <div class="kpi-label">Total Orders</div>
+            <div class="kpi-value">{{ orderCount }}</div>
           </div>
         </div>
       </section>
@@ -90,22 +45,28 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { getBuyerProfile, getDashboardStats } from '../../api/buyer.js'
+import { ref, computed, onMounted } from 'vue'
 import BuyerNavbar from '../../components/BuyerNavbar.vue'
+import { useAuthStore } from '../../stores/auth.js'
+import { useCartStore } from '../../stores/cart.js'
+import { getOrders } from '../../api/commerce.js'
 
-const profile = ref(null)
-const stats = ref(null)
-const loading = ref(true)
+const authStore = useAuthStore()
+const cartStore = useCartStore()
+
+const user = computed(() => authStore.user)
+const orderCount = ref('—')
+
 
 onMounted(async () => {
-  const [profileData, statsData] = await Promise.all([
-    getBuyerProfile(),
-    getDashboardStats()
-  ])
-  profile.value = profileData
-  stats.value = statsData
-  loading.value = false
+  await cartStore.loadCart()
+  try {
+    const data = await getOrders()
+    const orders = Array.isArray(data) ? data : (data.orders || [])
+    orderCount.value = orders.length
+  } catch {
+    orderCount.value = 0
+  }
 })
 </script>
 

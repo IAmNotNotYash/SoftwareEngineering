@@ -41,11 +41,11 @@
 
             <!-- New Address Form (Conditional) -->
             <div v-if="selectedAddress === 'new'" class="new-address-form">
-              <input type="text" placeholder="Full Name" class="form-input" />
-              <textarea placeholder="Complete Address" class="form-input" rows="3"></textarea>
+              <input type="text" v-model="newAddress.fullAddress" placeholder="Complete Address" class="form-input" />
               <div class="input-row">
-                <input type="text" placeholder="City" class="form-input" />
-                <input type="text" placeholder="PIN Code" class="form-input" />
+                <input type="text" v-model="newAddress.city" placeholder="City" class="form-input" />
+                <input type="text" v-model="newAddress.state" placeholder="State" class="form-input" />
+                <input type="text" v-model="newAddress.pinCode" placeholder="PIN Code" class="form-input" />
               </div>
             </div>
           </div>
@@ -73,15 +73,14 @@
 
             <!-- Card Form (Conditional) -->
             <div v-if="selectedPayment === 'card'" class="new-address-form">
-              <input type="text" placeholder="Card Number" class="form-input" />
+              <input type="text" v-model="cardInfo.number" placeholder="Card Number" class="form-input" />
               <div class="input-row">
-                <input type="text" placeholder="MM/YY" class="form-input" />
-                <input type="text" placeholder="CVV" class="form-input" />
+                <input type="text" v-model="cardInfo.expiry" placeholder="MM/YY" class="form-input" />
+                <input type="text" v-model="cardInfo.cvv" placeholder="CVV" class="form-input" />
               </div>
             </div>
-            <!-- UPI Form (Conditional) -->
             <div v-if="selectedPayment === 'upi'" class="new-address-form">
-              <input type="text" placeholder="Enter UPI ID (e.g., name@bank)" class="form-input" />
+              <input type="text" v-model="upiId" placeholder="Enter UPI ID (e.g., name@bank)" class="form-input" />
             </div>
           </div>
         </div>
@@ -90,7 +89,7 @@
         <div class="order-summary">
           <h2>Order Summary</h2>
           <div class="cart-preview">
-            <div v-for="item in cartState.items" :key="item.id" class="preview-item">
+            <div v-for="item in cartStore.items" :key="item.id" class="preview-item">
               <span>{{ item.quantity }}x {{ item.title }}</span>
               <span>₹{{ (item.price * item.quantity).toLocaleString('en-IN') }}</span>
             </div>
@@ -100,20 +99,21 @@
 
           <div class="summary-row">
             <span>Subtotal</span>
-            <span>₹{{ cartSubtotal.toLocaleString('en-IN') }}</span>
+            <span>₹{{ cartStore.subtotal.toLocaleString('en-IN') }}</span>
           </div>
           <div class="summary-row">
             <span>Shipping</span>
-            <span>₹{{ cartState.shipping.toLocaleString('en-IN') }}</span>
+            <span>₹{{ cartStore.shipping.toLocaleString('en-IN') }}</span>
           </div>
           <div class="summary-divider"></div>
           <div class="summary-row total-row">
             <span>Amount Payable</span>
-            <span>₹{{ cartTotal.toLocaleString('en-IN') }}</span>
+            <span>₹{{ cartStore.total.toLocaleString('en-IN') }}</span>
           </div>
           
-          <button class="place-order-btn" @click="handleCheckout" :disabled="cartState.items.length === 0">
-            Pay & Place Order
+          <p v-if="statusMessage" style="color:#d94242; font-size:14px; margin-bottom:12px;">{{ statusMessage }}</p>
+          <button class="place-order-btn" @click="handleCheckout" :disabled="cartStore.items.length === 0">
+            Pay &amp; Place Order
           </button>
         </div>
       </div>
@@ -123,20 +123,72 @@
 
 <script setup>
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import BuyerNavbar from '../../components/BuyerNavbar.vue'
-import { cartState, cartSubtotal, cartTotal } from '../../store/cart.js'
+import { useCartStore } from '../../stores/cart.js'
+import { useAuthStore } from '../../stores/auth.js'
+import { placeOrder } from '../../api/commerce.js'
+
+const router = useRouter()
+const cartStore = useCartStore()
+const authStore = useAuthStore()
 
 const selectedAddress = ref('home')
 const selectedPayment = ref('card')
 const orderPlaced = ref(false)
+const statusMessage = ref('')
 
-const handleCheckout = () => {
-  if (cartState.items.length > 0) {
-    // Simulate placing order
-    setTimeout(() => {
-      cartState.clearCart()
-      orderPlaced.value = true
-    }, 800)
+// New address form fields
+const newAddress = ref({ fullAddress: '', city: '', state: '', pinCode: '' })
+// Card form fields  
+const cardInfo = ref({ number: '', expiry: '', cvv: '' })
+// UPI field
+const upiId = ref('')
+
+async function handleCheckout() {
+  if (cartStore.items.length === 0) return
+
+  // Build shipping address snapshot
+  let shipping_address_snapshot
+  if (selectedAddress.value === 'home') {
+    shipping_address_snapshot = {
+      label: 'Home',
+      full_address: '123 Artisan Valley, Craft District, Sector 4',
+      city: 'Mumbai',
+      state: 'Maharashtra',
+      pin_code: '400032',
+      country: 'India',
+    }
+  } else {
+    if (!newAddress.value.fullAddress || !newAddress.value.city || !newAddress.value.pinCode) {
+      statusMessage.value = 'Please fill in all address fields.'
+      return
+    }
+    shipping_address_snapshot = {
+      label: 'New Address',
+      full_address: newAddress.value.fullAddress,
+      city: newAddress.value.city,
+      state: newAddress.value.state,
+      pin_code: newAddress.value.pinCode,
+      country: 'India',
+    }
+  }
+
+  // Build payment snapshot
+  let payment_snapshot
+  if (selectedPayment.value === 'card') {
+    payment_snapshot = { method: 'card', last4: cardInfo.value.number.slice(-4) || '****', expiry: cardInfo.value.expiry }
+  } else {
+    payment_snapshot = { method: 'upi', upi_id: upiId.value || 'user@upi' }
+  }
+
+  statusMessage.value = 'Placing your order...'
+  try {
+    await placeOrder({ shipping_address_snapshot, payment_snapshot })
+    await cartStore.clearCart()
+    orderPlaced.value = true
+  } catch (err) {
+    statusMessage.value = err.message
   }
 }
 </script>

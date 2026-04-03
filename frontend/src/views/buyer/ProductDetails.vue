@@ -59,6 +59,47 @@
             <h3>Dimensions</h3>
             <p>{{ product.dimensions }}</p>
           </div>
+
+          <div class="divider"></div>
+
+          <!-- Reviews Section -->
+          <div class="reviews-section">
+            <h2 class="section-title">Reviews</h2>
+            
+            <div v-if="authStore.user?.role === 'buyer'" class="review-form">
+              <h4>Share Your Experience</h4>
+              <div class="rating-input">
+                <span 
+                  v-for="i in 5" 
+                  :key="i" 
+                  @click="newRating = i"
+                  :class="{ active: newRating >= i }"
+                >★</span>
+              </div>
+              <textarea v-model="newReviewBody" placeholder="What do you think of this piece?" rows="3"></textarea>
+              <div class="form-actions">
+                <button class="btn-primary" @click="submitReview" :disabled="submittingReview">Submit Review</button>
+              </div>
+            </div>
+
+            <div class="reviews-list">
+              <div v-for="rev in reviews" :key="rev.id" class="review-item">
+                <div class="review-header">
+                  <div class="review-meta">
+                    <strong>{{ rev.buyer_name }}</strong>
+                    <div class="stars">
+                      <span v-for="i in 5" :key="i" :class="{ filled: (rev.rating || 0) >= i }">★</span>
+                    </div>
+                  </div>
+                  <span>{{ new Date(rev.created_at).toLocaleDateString() }}</span>
+                </div>
+                <p>{{ rev.body }}</p>
+              </div>
+              <div v-if="!reviews.length" class="no-reviews">
+                No reviews yet. Be the first to review this handcrafted piece!
+              </div>
+            </div>
+          </div>
           
         </div>
       </div>
@@ -75,19 +116,52 @@ import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import BuyerNavbar from '../../components/BuyerNavbar.vue'
 import { getProductDetails } from '../../api/buyer.js'
+import { getReviews, createReview } from '../../api/social.js'
 import { cartState } from '../../store/cart.js'
+import { useAuthStore } from '../../stores/auth.js'
 
+const authStore = useAuthStore()
 const route = useRoute()
 const product = ref(null)
 const activeImage = ref('')
+
+const reviews = ref([])
+const newReviewBody = ref('')
+const newRating = ref(5)
+const submittingReview = ref(false)
 
 onMounted(async () => {
   const id = route.params.id
   product.value = await getProductDetails(id)
   if (product.value) {
     activeImage.value = product.value.image
+    
+    // Load reviews
+    try {
+      reviews.value = await getReviews('product', id)
+    } catch (e) { console.error(e) }
   }
 })
+
+async function submitReview() {
+  if (!newReviewBody.value.trim()) return
+  submittingReview.value = true
+  try {
+    const rev = await createReview({
+      target_type: 'product',
+      target_id: product.value.id,
+      body: newReviewBody.value,
+      rating: newRating.value
+    })
+    reviews.value.unshift(rev)
+    newReviewBody.value = ''
+    newRating.value = 5
+  } catch (e) {
+    alert(e.message)
+  } finally {
+    submittingReview.value = false
+  }
+}
 </script>
 
 <style scoped>
@@ -279,5 +353,128 @@ onMounted(async () => {
   font-family: 'DM Sans', sans-serif;
   font-size: 18px;
   color: #888;
+}
+
+.divider {
+  height: 1px;
+  background: #e8e0d8;
+  margin: 40px 0;
+}
+
+/* Reviews Styling */
+.reviews-section {
+  margin-top: 40px;
+}
+
+.section-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 24px;
+  margin-bottom: 24px;
+}
+
+.review-form {
+  background: #fdfaf8;
+  padding: 24px;
+  border-radius: 8px;
+  margin-bottom: 40px;
+}
+
+.review-form h4 {
+  margin: 0 0 16px 0;
+  font-family: 'Playfair Display', serif;
+}
+
+.rating-input {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  font-size: 24px;
+  color: #ddd;
+  cursor: pointer;
+}
+
+.rating-input span.active {
+  color: #FBBF24;
+}
+
+.review-form textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #e8e0d8;
+  border-radius: 4px;
+  font-family: 'DM Sans', sans-serif;
+  margin-bottom: 16px;
+  resize: vertical;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn-primary {
+  background: #C4622D;
+  color: white;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 4px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.reviews-list {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.review-item {
+  border-bottom: 1px solid #f0f0f0;
+  padding-bottom: 24px;
+}
+
+.review-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.review-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.review-meta strong {
+  font-size: 15px;
+  color: #1a1a1a;
+}
+
+.stars {
+  color: #ddd;
+  font-size: 14px;
+}
+
+.stars span.filled {
+  color: #FBBF24;
+}
+
+.review-header span {
+  font-size: 12px;
+  color: #888;
+}
+
+.review-item p {
+  font-size: 15px;
+  line-height: 1.6;
+  color: #444;
+  margin: 0;
+}
+
+.no-reviews {
+  text-align: center;
+  padding: 40px;
+  color: #888;
+  font-style: italic;
 }
 </style>

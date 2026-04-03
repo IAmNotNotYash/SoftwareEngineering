@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token
+import json
 from app import db
 from app.models.user import User, BuyerProfile, ArtistProfile
 
@@ -51,7 +52,7 @@ def register():
 
     db.session.commit()
 
-    access_token = create_access_token(identity={'id': user.id, 'role': user.role, 'email': user.email})
+    access_token = create_access_token(identity=json.dumps({'id': user.id, 'role': user.role, 'email': user.email}))
     return jsonify({
         'message': 'Account created successfully',
         'token': access_token,
@@ -80,7 +81,13 @@ def login():
     if user.is_suspended:
         return jsonify({'error': 'Your account has been suspended by an administrator'}), 403
 
-    access_token = create_access_token(identity={'id': user.id, 'role': user.role, 'email': user.email})
+    if user.role == 'artist' and user.artist_profile.verification_status == 'rejected':
+        reason = user.artist_profile.rejection_reason or "No reason provided."
+        return jsonify({
+            'error': f'Your account verification was rejected. Reason: {reason}'
+        }), 403
+
+    access_token = create_access_token(identity=json.dumps({'id': user.id, 'role': user.role, 'email': user.email}))
     
     name = "Platform Admin"
     brand_name = None

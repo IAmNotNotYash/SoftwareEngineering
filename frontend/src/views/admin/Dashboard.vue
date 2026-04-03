@@ -96,9 +96,9 @@ const revenueChartCanvas = ref(null)
 const currentDate = new Date().toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })
 
 onMounted(async () => {
-  stats.value = await getDashboardStats()
-  
   try {
+    stats.value = await getDashboardStats()
+    
     const data = await getPlatformAnalytics()
     analytics.value = data
     
@@ -109,6 +109,7 @@ onMounted(async () => {
 
     if (revenueChartCanvas.value && data.revenueOverTime) {
       new Chart(revenueChartCanvas.value, {
+        // ... (rest of the chart logic stays same)
         type: 'line',
         data: {
           labels: data.revenueOverTime.map(d => d.month),

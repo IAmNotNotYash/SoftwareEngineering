@@ -14,36 +14,6 @@ The schema is designed around the following core domains:
 - **Analytics** — Artist Revenue Trend, Platform Revenue Trend, Analytics Snapshots
 
 ------
-
-## Table of Contents
-
-1. [USERS](https://claude.ai/chat/5f530cb0-d624-445e-8723-c7eeea4f573d#1-users)
-2. [ARTIST_PROFILES](https://claude.ai/chat/5f530cb0-d624-445e-8723-c7eeea4f573d#2-artist_profiles)
-3. [BUYER_PROFILES](https://claude.ai/chat/5f530cb0-d624-445e-8723-c7eeea4f573d#3-buyer_profiles)
-4. [ADDRESSES](https://claude.ai/chat/5f530cb0-d624-445e-8723-c7eeea4f573d#4-addresses)
-5. [PAYMENT_METHODS](https://claude.ai/chat/5f530cb0-d624-445e-8723-c7eeea4f573d#5-payment_methods)
-6. [FOLLOWS](https://claude.ai/chat/5f530cb0-d624-445e-8723-c7eeea4f573d#6-follows)
-7. [PRODUCTS](https://claude.ai/chat/5f530cb0-d624-445e-8723-c7eeea4f573d#7-products)
-8. [PRODUCT_IMAGES](https://claude.ai/chat/5f530cb0-d624-445e-8723-c7eeea4f573d#8-product_images)
-9. [CATALOGUES](https://claude.ai/chat/5f530cb0-d624-445e-8723-c7eeea4f573d#9-catalogues)
-10. [CATALOGUE_PRODUCTS](https://claude.ai/chat/5f530cb0-d624-445e-8723-c7eeea4f573d#10-catalogue_products)
-11. [CATALOGUE_STATS](https://claude.ai/chat/5f530cb0-d624-445e-8723-c7eeea4f573d#11-catalogue_stats)
-12. [CATALOGUE_VIEWS](https://claude.ai/chat/5f530cb0-d624-445e-8723-c7eeea4f573d#12-catalogue_views)
-13. [CATALOGUE_LIKES](https://claude.ai/chat/5f530cb0-d624-445e-8723-c7eeea4f573d#13-catalogue_likes)
-14. [POSTS](https://claude.ai/chat/5f530cb0-d624-445e-8723-c7eeea4f573d#14-posts)
-15. [REVIEWS](https://claude.ai/chat/5f530cb0-d624-445e-8723-c7eeea4f573d#15-reviews)
-16. [ORDERS](https://claude.ai/chat/5f530cb0-d624-445e-8723-c7eeea4f573d#16-orders)
-17. [ORDER_ITEMS](https://claude.ai/chat/5f530cb0-d624-445e-8723-c7eeea4f573d#17-order_items)
-18. [ORDER_TRACKING_EVENTS](https://claude.ai/chat/5f530cb0-d624-445e-8723-c7eeea4f573d#18-order_tracking_events)
-19. [CART_ITEMS](https://claude.ai/chat/5f530cb0-d624-445e-8723-c7eeea4f573d#19-cart_items)
-20. [BROADCASTS](https://claude.ai/chat/5f530cb0-d624-445e-8723-c7eeea4f573d#20-broadcasts)
-21. [ANALYTICS_SNAPSHOTS](https://claude.ai/chat/5f530cb0-d624-445e-8723-c7eeea4f573d#21-analytics_snapshots)
-22. [ARTIST_REVENUE_TREND](https://claude.ai/chat/5f530cb0-d624-445e-8723-c7eeea4f573d#22-artist_revenue_trend)
-23. [PLATFORM_REVENUE_TREND](https://claude.ai/chat/5f530cb0-d624-445e-8723-c7eeea4f573d#23-platform_revenue_trend)
-24. [Entity Relationship Summary](https://claude.ai/chat/5f530cb0-d624-445e-8723-c7eeea4f573d#24-entity-relationship-summary)
-
-------
-
 ## 1. USERS
 
 ### Purpose
