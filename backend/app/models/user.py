@@ -1,0 +1,57 @@
+import uuid
+from datetime import datetime, timezone
+from werkzeug.security import generate_password_hash, check_password_hash
+from app import db
+
+class User(db.Model):
+    __tablename__ = 'users'
+
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    email = db.Column(db.String(255), unique=True, nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
+    role = db.Column(db.Enum('buyer', 'artist', 'admin', name='user_roles'), nullable=False)
+    is_suspended = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    artist_profile = db.relationship('ArtistProfile', back_populates='user', uselist=False, cascade='all, delete-orphan')
+    buyer_profile = db.relationship('BuyerProfile', back_populates='user', uselist=False, cascade='all, delete-orphan')
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+
+
+class ArtistProfile(db.Model):
+    __tablename__ = 'artist_profiles'
+
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id'), unique=True, nullable=False)
+    brand_name = db.Column(db.String(150), nullable=False)
+    full_name = db.Column(db.String(150), nullable=False)
+    location = db.Column(db.String(150), nullable=True)
+    bio = db.Column(db.Text, nullable=True)
+    profile_image_url = db.Column(db.String(500), nullable=True)
+    cover_image_url = db.Column(db.String(500), nullable=True)
+    verification_status = db.Column(db.Enum('pending', 'approved', 'rejected', name='verification_status_enum'), nullable=False, default='pending')
+    rejection_reason = db.Column(db.String(500), nullable=True)
+    verified_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    user = db.relationship('User', foreign_keys=[user_id], back_populates='artist_profile')
+
+
+
+class BuyerProfile(db.Model):
+    __tablename__ = 'buyer_profiles'
+
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = db.Column(db.String(36), db.ForeignKey('users.id'), unique=True, nullable=False)
+    full_name = db.Column(db.String(150), nullable=False)
+    phone = db.Column(db.String(20), nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    user = db.relationship('User', back_populates='buyer_profile')
