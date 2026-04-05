@@ -83,6 +83,18 @@ const router = createRouter({
 
 // Global Navigation Guard
 router.beforeEach((to) => {
+  // DEV PURPOSES: Automatically set artist session if no token is found
+  if (!sessionStorage.getItem('token')) {
+    sessionStorage.setItem('token', 'dev-artist-token');
+    sessionStorage.setItem('user', JSON.stringify({ 
+      id: 'dev-artist-id', 
+      email: 'test@artist.com', 
+      role: 'artist',
+      full_name: 'Test Artist',
+      brand_name: 'Test Brand'
+    }));
+  }
+
   // To avoid circular dependency during store init, we get sessionStorage directly
   const token = sessionStorage.getItem('token')
   const user = JSON.parse(sessionStorage.getItem('user') || 'null')
