@@ -77,7 +77,14 @@
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue'
+import { reactive, ref, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { useAuthStore } from '../../stores/auth'
+import { loginAPI } from '../../api/auth'
+
+const router = useRouter()
+const route = useRoute()
+const authStore = useAuthStore()
 
 const form = reactive({
   email: '',
@@ -87,8 +94,28 @@ const form = reactive({
 const rememberMe = ref(true)
 const statusMessage = ref('')
 
-function handleLogin() {
-  statusMessage.value = 'Login submitted. Connect this form to your auth API when ready.'
+onMounted(() => {
+  if (route.query.msg === 'blocked') {
+    statusMessage.value = 'Your session has ended or your account has been blocked.'
+  }
+})
+
+async function handleLogin() {
+  statusMessage.value = 'Logging in...'
+  try {
+    const data = await loginAPI(form.email, form.password)
+    authStore.setAuth(data)
+    
+    if (data.user.role === 'admin') {
+      router.push('/admin/artists')
+    } else if (data.user.role === 'artist') {
+      router.push('/artist/dashboard')
+    } else {
+      router.push('/buyer/dashboard')
+    }
+  } catch (err) {
+    statusMessage.value = err.message
+  }
 }
 </script>
 

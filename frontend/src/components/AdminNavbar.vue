@@ -13,15 +13,24 @@
       <RouterLink to="/admin/buyers" active-class="router-link-active">Buyers</RouterLink>
       <RouterLink to="/admin/orders" active-class="router-link-active">Orders</RouterLink>
       <RouterLink to="/admin/analytics" active-class="router-link-active">Analytics</RouterLink>
-      <a href="#" class="logout">Logout</a>
+      <a href="#" class="logout" @click.prevent="handleLogout">Logout</a>
     </div>
   </nav>
 </template>
 
 <script setup>
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '../stores/auth.js'
 
 const hasLogo = ref(true)
+const router = useRouter()
+const authStore = useAuthStore()
+
+function handleLogout() {
+  authStore.logout()
+  router.push('/auth/login')
+}
 </script>
 
 <style scoped>

@@ -16,18 +16,29 @@
         Cart <span class="cart-count" v-if="cartTotalItems > 0">{{ cartTotalItems }}</span>
       </RouterLink>
       <RouterLink to="/buyer/profile" active-class="router-link-active" class="profile-link">Profile</RouterLink>
-      <a href="#" class="logout">Logout</a>
+      <a href="#" class="logout" @click.prevent="logout">Logout</a>
     </div>
   </nav>
 </template>
 
 <script setup>
 import { computed, ref } from 'vue'
-import { cartState } from '../store/cart.js'
+import { useCartStore } from '../stores/cart.js'
+import { useAuthStore } from '../stores/auth.js'
+import { useRouter } from 'vue-router'
 
-const cartTotalItems = computed(() => {
-  return cartState.items.reduce((sum, item) => sum + item.quantity, 0)
-})
+const cartStore = useCartStore()
+const authStore = useAuthStore()
+const router = useRouter()
+
+const cartTotalItems = computed(() =>
+  cartStore.items.reduce((sum, item) => sum + item.quantity, 0)
+)
+
+function logout() {
+  authStore.logout()
+  router.push('/auth/login')
+}
 
 const hasLogo = ref(true)
 </script>

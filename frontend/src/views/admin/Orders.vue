@@ -39,7 +39,7 @@
               <td>{{ order.id }}</td>
               <td>{{ order.buyer }}</td>
               <td>{{ order.artist }}</td>
-              <td>₹{{ order.amount }}</td>
+              <td>₹{{ order.total?.toLocaleString('en-IN') || 0 }}</td>
               <td>
                 <span class="badge" :class="order.status">
                   {{ capitalize(order.status) }}

@@ -30,24 +30,23 @@
           <tbody>
             <tr v-for="buyer in filteredBuyers" :key="buyer.id">
               <td>{{ buyer.name }}</td>
-              <td>{{ buyer.email }}</td>
-              <td>{{ buyer.orderCount }}</td>
+              <td class="muted">{{ buyer.email }}</td>
+              <td>{{ buyer.orders }}</td>
               <td>
                 <span
                   class="badge"
-                  :class="buyer.suspended ? 'suspended' : 'active'"
+                  :class="buyer.is_suspended ? 'suspended' : 'active'"
                 >
-                  {{ buyer.suspended ? 'Suspended' : 'Active' }}
+                  {{ buyer.is_suspended ? 'Suspended' : 'Active' }}
                 </span>
               </td>
               <td>{{ buyer.joined }}</td>
               <td>
                 <button
                   class="suspend-btn"
-                  :disabled="buyer.suspended"
                   @click="openModal(buyer)"
                 >
-                  {{ buyer.suspended ? 'Suspended' : 'Suspend' }}
+                  {{ buyer.is_suspended ? 'Unsuspend' : 'Suspend' }}
                 </button>
               </td>
             </tr>
@@ -57,18 +56,24 @@
         <p v-if="filteredBuyers.length === 0" class="empty">
           No buyers found.
         </p>
+
+        <div v-if="hasMore" class="pagination-footer">
+          <button class="load-more-btn" @click="loadMore" :disabled="loadingMore">
+            {{ loadingMore ? 'Loading...' : 'Load More' }}
+          </button>
+        </div>
       </div>
     </div>
 
     <!-- Confirmation Modal -->
     <div v-if="showModal" class="modal-overlay">
       <div class="modal">
-        <h3>Confirm Suspension</h3>
-        <p>Are you sure you want to suspend {{ selectedBuyer?.name }}?</p>
+        <h3>{{ selectedBuyer?.is_suspended ? 'Confirm Unsuspension' : 'Confirm Suspension' }}</h3>
+        <p>Are you sure you want to {{ selectedBuyer?.is_suspended ? 'unsuspend' : 'suspend' }} {{ selectedBuyer?.name }}?</p>
 
         <div class="modal-actions">
           <button class="cancel" @click="closeModal">Cancel</button>
-          <button class="confirm" @click="confirmSuspend">Suspend</button>
+          <button class="confirm" @click="confirmSuspend">{{ selectedBuyer?.is_suspended ? 'Unsuspend' : 'Suspend' }}</button>
         </div>
       </div>
     </div>
@@ -81,6 +86,11 @@ import AdminNavbar from '../../components/AdminNavbar.vue'
 import { getBuyers, suspendBuyer } from '../../api/admin.js'
 
 const buyers = ref([])
+const totalBuyers = ref(0)
+const limit = 10
+const offset = ref(0)
+const loadingMore = ref(false)
+
 const searchQuery = ref('')
 const debouncedQuery = ref('')
 
@@ -88,8 +98,24 @@ const showModal = ref(false)
 const selectedBuyer = ref(null)
 
 onMounted(async () => {
-  buyers.value = await getBuyers()
+  const data = await getBuyers(limit, offset.value)
+  buyers.value = data.buyers
+  totalBuyers.value = data.total
 })
+
+const hasMore = computed(() => buyers.value.length < totalBuyers.value)
+
+async function loadMore() {
+  loadingMore.value = true
+  try {
+    offset.value += limit
+    const data = await getBuyers(limit, offset.value)
+    buyers.value = [...buyers.value, ...data.buyers]
+    totalBuyers.value = data.total
+  } finally {
+    loadingMore.value = false
+  }
+}
 
 // Debounce search
 let timeout = null
@@ -124,11 +150,11 @@ const closeModal = () => {
 const confirmSuspend = async () => {
   if (!selectedBuyer.value) return
 
-  await suspendBuyer(selectedBuyer.value.id)
+  const res = await suspendBuyer(selectedBuyer.value.id)
 
   // optimistic update
   buyers.value = buyers.value.map(b =>
-    b.id === selectedBuyer.value.id ? { ...b, suspended: true } : b
+    b.id === selectedBuyer.value.id ? { ...b, is_suspended: res.is_suspended } : b
   )
 
   closeModal()
@@ -273,5 +299,32 @@ td {
   text-align: center;
   margin-top: 20px;
   color: #999;
+}
+
+.pagination-footer {
+  display: flex;
+  justify-content: center;
+  padding: 20px 0 10px;
+}
+
+.load-more-btn {
+  background: white;
+  border: 1px solid #C4622D;
+  color: #C4622D;
+  padding: 8px 24px;
+  border-radius: 20px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.load-more-btn:hover:not(:disabled) {
+  background: #C4622D;
+  color: white;
+}
+
+.load-more-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 </style>

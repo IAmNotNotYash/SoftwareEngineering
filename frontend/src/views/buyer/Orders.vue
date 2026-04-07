@@ -8,16 +8,16 @@
         <div v-for="order in orders" :key="order.id" class="order-card">
           <div class="order-header">
             <div class="header-info">
-              <div class="order-id">Order #{{ order.id }}</div>
-              <div class="order-date">Placed on {{ order.date }}</div>
+              <div class="order-id">{{ order.display_id || order.id }}</div>
+              <div class="order-date">Placed on {{ new Date(order.created_at).toLocaleDateString('en-IN') }}</div>
             </div>
-            <div class="order-status" :class="order.status.toLowerCase().replace(' ', '-')">
+            <div class="order-status" :class="order.status">
               {{ order.status }}
             </div>
           </div>
           
           <div class="order-items">
-            <div v-for="item in order.items" :key="item.id" class="order-item">
+            <div v-for="item in (order.items || [])" :key="item.id" class="order-item">
               <div class="item-img" :style="{ backgroundImage: `url(${item.image})` }"></div>
               <div class="item-details">
                 <div class="item-title">{{ item.title }}</div>
@@ -38,26 +38,19 @@
           <div class="tracking-container" v-if="trackingExpanded === order.id">
             <h4 class="tracking-title">Delivery Status</h4>
             <div class="timeline">
-              <div class="timeline-step completed">
+              <div
+                v-for="event in (trackingEvents[order.id] || [])"
+                :key="event.id"
+                class="timeline-step completed"
+              >
                 <div class="step-indicator"></div>
                 <div class="step-content">
-                  <div class="step-label">Order Confirmed</div>
-                  <div class="step-date">{{ order.date }}</div>
+                  <div class="step-label">{{ EVENT_LABEL[event.event] || event.event }}</div>
+                  <div class="step-date">{{ new Date(event.created_at).toLocaleString('en-IN') }}</div>
                 </div>
               </div>
-              <div class="timeline-step completed">
-                <div class="step-indicator"></div>
-                <div class="step-content">
-                  <div class="step-label">Dispatched</div>
-                  <div class="step-date">1 day later</div>
-                </div>
-              </div>
-              <div class="timeline-step" :class="{ 'completed': order.status === 'Delivered' }">
-                <div class="step-indicator"></div>
-                <div class="step-content">
-                  <div class="step-label">Out for Delivery</div>
-                  <div class="step-date">Pending</div>
-                </div>
+              <div v-if="!(trackingEvents[order.id] || []).length" class="timeline-step">
+                <div class="step-content"><div class="step-label" style="color:#888">No tracking events yet.</div></div>
               </div>
             </div>
           </div>
@@ -65,18 +58,17 @@
           <!-- Details (Conditional) -->
           <div class="tracking-container" v-if="detailsExpanded === order.id">
             <h4 class="tracking-title">Shipping Address</h4>
-            <p style="color: #555; font-size: 14px; line-height: 1.6;">
-              123 Artisan Valley<br/>
-              Craft District, Sector 4<br/>
-              Mumbai, Maharashtra<br/>
-              India 400032
+            <p style="color: #555; font-size: 14px; line-height: 1.6;" v-if="order.shipping_address_snapshot">
+              {{ order.shipping_address_snapshot.full_address }}<br/>
+              {{ order.shipping_address_snapshot.city }}, {{ order.shipping_address_snapshot.state }}<br/>
+              {{ order.shipping_address_snapshot.country }} {{ order.shipping_address_snapshot.pin_code }}
             </p>
           </div>
 
         </div>
         
         <div v-if="orders.length === 0" class="loading-state">
-          Loading orders...
+          You have no orders yet.
         </div>
       </div>
     </div>
@@ -86,24 +78,38 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import BuyerNavbar from '../../components/BuyerNavbar.vue'
-import { getOrders } from '../../api/buyer.js'
+import { getOrders, getOrderTracking } from '../../api/commerce.js'
 
 const orders = ref([])
 const trackingExpanded = ref(null)
 const detailsExpanded = ref(null)
+const trackingEvents = ref({})
 
 onMounted(async () => {
-  orders.value = await getOrders()
+  const data = await getOrders()
+  orders.value = Array.isArray(data) ? data : (data.orders || [])
 })
 
-const toggleTracking = (id) => {
+async function toggleTracking(orderId) {
   detailsExpanded.value = null
-  trackingExpanded.value = trackingExpanded.value === id ? null : id
+  if (trackingExpanded.value === orderId) { trackingExpanded.value = null; return }
+  trackingExpanded.value = orderId
+  if (!trackingEvents.value[orderId]) {
+    try {
+      const data = await getOrderTracking(orderId)
+      trackingEvents.value[orderId] = data.tracking_events || data
+    } catch { trackingEvents.value[orderId] = [] }
+  }
 }
 
 const toggleDetails = (id) => {
   trackingExpanded.value = null
   detailsExpanded.value = detailsExpanded.value === id ? null : id
+}
+
+const EVENT_LABEL = {
+  confirmed: 'Order Confirmed', dispatched: 'Dispatched',
+  out_for_delivery: 'Out for Delivery', delivered: 'Delivered', cancelled: 'Cancelled',
 }
 </script>
 

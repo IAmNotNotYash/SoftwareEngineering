@@ -15,25 +15,9 @@
         <div class="audience-card">
           <div class="audience-icon follower-icon">👥</div>
           <div class="audience-info">
-            <span class="audience-label">Followers</span>
-            <span class="audience-value">18,402</span>
-            <span class="audience-trend positive">+124 this week</span>
-          </div>
-        </div>
-        <div class="audience-card">
-          <div class="audience-icon fan-icon">⭐</div>
-          <div class="audience-info">
-            <span class="audience-label">Fans</span>
-            <span class="audience-value">4,193</span>
-            <span class="audience-trend positive">+45 this week</span>
-          </div>
-        </div>
-        <div class="audience-card">
-          <div class="audience-icon patron-icon">💎</div>
-          <div class="audience-info">
-            <span class="audience-label">Patrons</span>
-            <span class="audience-value">842</span>
-            <span class="audience-trend positive">+12 this week</span>
+            <span class="audience-label">Total Followers</span>
+            <span class="audience-value">{{ audienceSize.toLocaleString() }}</span>
+            <span class="audience-trend positive">Active Audience</span>
           </div>
         </div>
       </section>
@@ -62,13 +46,13 @@
             <div class="catalog-select">
               <div 
                 v-for="c in catalogues" 
-                :key="c.name" 
+                :key="c.id" 
                 class="catalog-option"
-                :class="{ selected: selectedCatalogue === c.name }"
-                @click="selectedCatalogue = c.name"
+                :class="{ selected: selectedCatalogueId === c.id }"
+                @click="selectedCatalogueId = c.id"
               >
-                <div class="catalog-dot" :style="{ background: c.color }"></div>
-                <span>{{ c.name }}</span>
+                <div class="catalog-dot" :style="{ background: c.theme === 'earth' ? '#C4622D' : '#6A7E6A' }"></div>
+                <span>{{ c.title }}</span>
               </div>
             </div>
           </div>
@@ -132,9 +116,12 @@
             <div class="preview-content">
               <p>{{ message || 'Your message preview will appear here...' }}</p>
             </div>
-            <div class="preview-attachment" v-if="selectedCatalogue && selectedCatalogue !== 'None (Just Message)'">
-              <div class="attachment-img" :style="{ background: catalogues.find(c => c.name === selectedCatalogue)?.color }">
-                 <span>{{ selectedCatalogue }}</span>
+            <div class="preview-attachment" v-if="selectedCatalogueId">
+              <div class="attachment-img" :style="{ background: '#C4622D' }">
+                 <span>{{ catalogues.find(c => c.id === selectedCatalogueId)?.title }}</span>
+              </div>
+              <div class="attachment-btn">View Catalogue</div>
+            </div>
               </div>
               <div class="attachment-btn">View Catalogue</div>
             </div>
@@ -216,21 +203,20 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import ArtistNavbar from '../../components/ArtistNavbar.vue'
+import { getCatalogues } from '../../api/catalogue.js'
+import { getAudienceSize, sendBroadcast as apiSendBroadcast } from '../../api/communication.js'
 
 const activeTab = ref('composer')
 const message = ref("🎨 Exciting news! Check out my latest collection — crafted with love and available now at special prices. Don't miss out!")
 const selectedIntent = ref('launch')
-const selectedCatalogue = ref('Summer Art Collection')
+const selectedCatalogueId = ref(null)
+const audienceSize = ref(0)
+const loading = ref(true)
 const searchQuery = ref('')
 
-const catalogues = [
-  { name: 'None (Just Message)', color: '#e8e0d8' },
-  { name: 'Summer Art Collection', color: '#C4622D' },
-  { name: 'Earth Tone Ceramics', color: '#6A7E6A' },
-  { name: 'Digital Workshop Series', color: '#2D3748' },
-]
+const catalogues = ref([])
 
 const intents = [
   { emoji: '🚀', label: 'New Launch', value: 'launch' },
@@ -241,8 +227,6 @@ const intents = [
 
 const platforms = ref([
   { id: 'email', icon: '✉️', label: 'Email List', active: true },
-  { id: 'ig', icon: '📸', label: 'Instagram', active: false },
-  { id: 'fb', icon: '📘', label: 'Facebook', active: false },
   { id: 'tg', icon: '✈️', label: 'Telegram', active: true },
 ])
 
@@ -271,15 +255,43 @@ const getRandomColor = () => {
   return colors[Math.floor(Math.random() * colors.length)]
 }
 
+onMounted(async () => {
+  try {
+    const [audienceData, catalogueData] = await Promise.all([
+      getAudienceSize(),
+      getCatalogues()
+    ])
+    audienceSize.value = audienceData.count
+    catalogues.value = catalogueData.catalogues || []
+    if (catalogues.value.length) {
+      selectedCatalogueId.value = catalogues.value[0].id
+    }
+  } catch (err) {
+    console.error("Failed to load broadcast data", err)
+  } finally {
+    loading.value = false
+  }
+})
 const resetForm = () => {
   message.value = ''
   selectedIntent.value = 'launch'
-  selectedCatalogue.value = 'None (Just Message)'
+  selectedCatalogueId.value = null
 }
 
-const sendBroadcast = () => {
-  const activePlatforms = platforms.value.filter(p => p.active).map(p => p.label).join(', ')
-  alert(`Broadcast successfully queued to be sent via: ${activePlatforms}`)
+const sendBroadcast = async () => {
+  try {
+    const payload = {
+      message: message.value,
+      intent: selectedIntent.value,
+      catalogue_id: selectedCatalogueId.value,
+      platforms: platforms.value.filter(p => p.active).map(p => p.id)
+    }
+    await apiSendBroadcast(payload)
+    alert(`Broadcast successfully sent to ${audienceSize.value} followers!`)
+    resetForm()
+  } catch (err) {
+    alert("Error sending broadcast: " + err.message)
+  }
 }
 </script>
 

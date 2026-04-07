@@ -45,8 +45,13 @@
               <span>Account Type</span>
               <select v-model="form.accountType">
                 <option value="buyer">Buyer</option>
-                <option value="artist">Artist Placeholder</option>
+                <option value="artist">Artist</option>
               </select>
+            </label>
+
+            <label class="field" v-if="form.accountType === 'artist'">
+              <span>Brand Name</span>
+              <input v-model="form.brandName" type="text" placeholder="e.g. Luna Ceramics" />
             </label>
 
             <label class="consent">
@@ -97,6 +102,12 @@
 
 <script setup>
 import { reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '../../stores/auth'
+import { registerAPI } from '../../api/auth'
+
+const router = useRouter()
+const authStore = useAuthStore()
 
 const form = reactive({
   firstName: '',
@@ -105,13 +116,52 @@ const form = reactive({
   password: '',
   confirmPassword: '',
   accountType: 'buyer',
+  brandName: '',
 })
 
 const acceptTerms = ref(true)
 const statusMessage = ref('')
 
-function handleRegister() {
-  statusMessage.value = 'Registration submitted. Connect this form to your signup API when ready.'
+async function handleRegister() {
+  if (form.password !== form.confirmPassword) {
+    statusMessage.value = "Passwords do not match."
+    return
+  }
+  if (!acceptTerms.value) {
+    statusMessage.value = "You must agree to the terms."
+    return
+  }
+
+  const payload = {
+    firstName: form.firstName,
+    lastName: form.lastName,
+    email: form.email,
+    password: form.password,
+    role: form.accountType,
+  }
+  
+  if (form.accountType === 'artist') {
+    if (!form.brandName) {
+      statusMessage.value = "Brand Name is required for Artists."
+      return
+    }
+    payload.brandName = form.brandName
+  }
+
+  statusMessage.value = "Creating account..."
+  try {
+    const data = await registerAPI(payload)
+    authStore.setAuth(data)
+    
+    // Redirect based on role
+    if (data.user.role === 'artist') {
+      router.push('/artist/dashboard')
+    } else {
+      router.push('/buyer/dashboard')
+    }
+  } catch (err) {
+    statusMessage.value = err.message
+  }
 }
 </script>
 

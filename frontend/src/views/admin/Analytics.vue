@@ -32,12 +32,10 @@
           </div>
         </div>
 
-        <!-- AI Summary Placeholder -->
-        <div class="ai-summary">
+        <!-- AI Summary -->
+        <div class="ai-summary" v-if="aiSummary">
           <h3>AI Insights</h3>
-          <p class="placeholder">
-            AI-generated summary of platform performance will appear here.
-          </p>
+          <p>{{ aiSummary.ai_summary }}</p>
         </div>
       </div>
 
@@ -80,6 +78,7 @@ import Chart from 'chart.js/auto'
 const activeTab = ref('overview')
 const kpis = ref([])
 const artistStats = ref([])
+const aiSummary = ref(null)
 
 const revenueCanvas = ref(null)
 const ordersCanvas = ref(null)
@@ -91,6 +90,7 @@ onMounted(async () => {
   const data = await getAnalytics()
   kpis.value = data.kpis
   artistStats.value = data.artistStats
+  aiSummary.value = data.aiSummary
 
   await nextTick()
 
