@@ -15,7 +15,7 @@ import AdminAnalytics from '../views/admin/Analytics.vue'
 
 // Buyer views
 import BuyerDashboard from '../views/buyer/Dashboard.vue'
-import BuyerProducts from '../views/buyer/Products.vue'
+import BuyerExplore from '../views/buyer/Explore.vue'
 import BuyerOrders from '../views/buyer/Orders.vue'
 import BuyerCart from '../views/buyer/Cart.vue'
 import BuyerCatalogue from '../views/buyer/Catalogue.vue'
@@ -51,7 +51,7 @@ const routes = [
   
   // Buyer routes
   { path: '/buyer/dashboard',    component: BuyerDashboard },
-  { path: '/buyer/products',     component: BuyerProducts },
+  { path: '/buyer/explore',     component: BuyerExplore },
   { path: '/buyer/orders',       component: BuyerOrders },
   { path: '/buyer/cart',         component: BuyerCart },
   { path: '/buyer/catalogue/:id',component: BuyerCatalogue },

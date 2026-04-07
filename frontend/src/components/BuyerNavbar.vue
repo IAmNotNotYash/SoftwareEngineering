@@ -9,7 +9,7 @@
     </div>
     <div class="navbar-links">
       <RouterLink to="/buyer/dashboard" active-class="router-link-active">Dashboard</RouterLink>
-      <RouterLink to="/buyer/products" active-class="router-link-active">Products</RouterLink>
+      <RouterLink to="/buyer/explore" active-class="router-link-active">Explore</RouterLink>
       <RouterLink to="/buyer/following" active-class="router-link-active">Following</RouterLink>
       <RouterLink to="/buyer/orders" active-class="router-link-active">Orders</RouterLink>
       <RouterLink to="/buyer/cart" active-class="router-link-active" class="cart-link">
