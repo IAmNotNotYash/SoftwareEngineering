@@ -73,10 +73,21 @@
         <div class="divider"></div>
 
         <!-- Products in Catalogue -->
-        <div class="catalogue-products" v-if="catalogue.products?.length">
-          <h2 class="section-title">Pieces in this Catalogue</h2>
-          <div class="products-grid">
-            <div v-for="product in catalogue.products" :key="product.id" class="product-card">
+        <div class="catalogue-products">
+          <div class="products-header">
+            <h2 class="section-title">Pieces in this Catalogue</h2>
+            <div class="catalogue-search">
+              <input 
+                type="text" 
+                v-model="productSearch" 
+                placeholder="Search products in this catalogue..." 
+                class="inner-search-input"
+              />
+            </div>
+          </div>
+          
+          <div class="products-grid" v-if="filteredProducts.length > 0">
+            <div v-for="product in filteredProducts" :key="product.id" class="product-card">
               <RouterLink :to="`/buyer/product/${product.id}`" style="display: block;">
                 <div class="product-image" :style="{ backgroundImage: `url(${product.image})` }"></div>
               </RouterLink>
@@ -94,8 +105,10 @@
               </div>
             </div>
           </div>
+          <div v-else class="no-products-found">
+            No products match your search within this catalogue.
+          </div>
         </div>
-        
       </div>
     </div>
     
@@ -106,7 +119,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import BuyerNavbar from '../../components/BuyerNavbar.vue'
 import { getCatalogue, likeCatalogue, unlikeCatalogue, checkLike } from '../../api/catalogue.js'
@@ -121,10 +134,20 @@ const authStore = useAuthStore()
 const catalogue = ref(null)
 const isLiked = ref(false)
 const addingId = ref(null)
+const productSearch = ref('')
 
 const reviews = ref([])
 const newReviewBody = ref('')
 const submittingReview = ref(false)
+
+const filteredProducts = computed(() => {
+  if (!catalogue.value) return []
+  if (!productSearch.value) return catalogue.value.products
+  const query = productSearch.value.toLowerCase()
+  return catalogue.value.products.filter(p => 
+    p.title.toLowerCase().includes(query)
+  )
+})
 
 onMounted(async () => {
   const id = route.params.id
@@ -317,6 +340,43 @@ async function submitReview() {
   height: 1px;
   background: #e8e0d8;
   margin: 0 0 60px 0;
+}
+
+.products-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+}
+
+.products-header .section-title {
+  margin-bottom: 0;
+}
+
+.inner-search-input {
+  font-family: 'DM Sans', sans-serif;
+  padding: 10px 20px;
+  border: 1px solid #e8e0d8;
+  border-radius: 8px;
+  width: 300px;
+  outline: none;
+  transition: border-color 0.2s;
+  background: #fdfaf8;
+}
+
+.inner-search-input:focus {
+  border-color: #C4622D;
+  background: #fff;
+}
+
+.no-products-found {
+  text-align: center;
+  padding: 60px;
+  color: #888;
+  font-style: italic;
+  font-family: 'DM Sans', sans-serif;
+  border: 1px dashed #e8e0d8;
+  border-radius: 12px;
 }
 
 /* Products Layout */

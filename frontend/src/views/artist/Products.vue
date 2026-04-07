@@ -6,7 +6,7 @@
       <div class="page-header">
         <div>
           <h1 class="page-title">Products</h1>
-          <p class="subtitle">Manage your product catalog and tier-based pricing rings.</p>
+          <p class="subtitle">Manage your product catalog and pricing.</p>
         </div>
         <button class="btn primary-btn" @click="showAddProduct = true">+ Add Product</button>
       </div>
@@ -18,19 +18,9 @@
           </div>
           <div class="product-body">
             <h3>{{ p.name }}</h3>
-            <div class="tier-prices">
-              <div class="tier-row">
-                <span class="tier-badge"><span class="tier-dot follower-dot"></span> Follower</span>
-                <span>₹{{ p.follower.toLocaleString() }}</span>
-              </div>
-              <div class="tier-row">
-                <span class="tier-badge"><span class="tier-dot fan-dot"></span> Fan</span>
-                <span>₹{{ p.fan.toLocaleString() }}</span>
-              </div>
-              <div class="tier-row">
-                <span class="tier-badge"><span class="tier-dot patron-dot"></span> Patron</span>
-                <span>₹{{ p.patron.toLocaleString() }}</span>
-              </div>
+            <div class="price-display">
+              <span class="price-label">Price</span>
+              <span class="price-value">₹{{ p.price.toLocaleString() }}</span>
             </div>
             <button class="btn secondary-btn edit-btn">Edit Product</button>
           </div>
@@ -43,7 +33,7 @@
           <div class="modal-header">
             <div>
               <h2 class="modal-title">Add New Product</h2>
-              <p class="modal-subtitle">Upload product images and set pricing tiers.</p>
+              <p class="modal-subtitle">Upload product images and set the price.</p>
             </div>
             <button class="close-btn" @click="showAddProduct = false">×</button>
           </div>
@@ -80,29 +70,13 @@
             </div>
 
             <div class="form-section">
-              <label class="form-label">Tiered Pricing</label>
-              <div class="tier-inputs">
-                <div class="tier-input-card">
-                  <span class="tier-badge"><span class="tier-dot follower-dot"></span> Follower</span>
-                  <div class="currency-input">
-                    <span>₹</span>
-                    <input v-model.number="newProduct.follower" type="number" placeholder="0" />
-                  </div>
+              <label class="form-label">Pricing</label>
+              <div class="price-input-container">
+                <div class="currency-input">
+                  <span>₹</span>
+                  <input v-model.number="newProduct.price" type="number" placeholder="0" />
                 </div>
-                <div class="tier-input-card">
-                  <span class="tier-badge"><span class="tier-dot fan-dot"></span> Fan</span>
-                  <div class="currency-input">
-                    <span>₹</span>
-                    <input v-model.number="newProduct.fan" type="number" placeholder="0" />
-                  </div>
-                </div>
-                <div class="tier-input-card">
-                  <span class="tier-badge"><span class="tier-dot patron-dot"></span> Patron</span>
-                  <div class="currency-input">
-                    <span>₹</span>
-                    <input v-model.number="newProduct.patron" type="number" placeholder="0" />
-                  </div>
-                </div>
+                <p class="field-hint">Set a uniform price for all your subscribers.</p>
               </div>
             </div>
           </div>
@@ -125,12 +99,12 @@ const showAddProduct = ref(false)
 const fileInput = ref(null)
 
 const products = ref([
-  { name: 'Abstract Canvas Print', photos: 4, gradient: 'linear-gradient(135deg,#e8e0d8,#faf8f5)', images: ['https://images.unsplash.com/photo-1544816155-12df9643f363?w=600'], follower: 1200, fan: 999, patron: 799 },
-  { name: 'Digital Art Bundle', photos: 6, gradient: 'linear-gradient(135deg,#e8e0d8,#faf8f5)', images: ['https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600'], follower: 500, fan: 399, patron: 299 },
-  { name: 'Earth Tone Teapot', photos: 3, gradient: 'linear-gradient(135deg,#e8e0d8,#faf8f5)', images: ['https://images.unsplash.com/photo-1610701596007-11502861dcfa?w=600'], follower: 3500, fan: 2999, patron: 2499 },
+  { name: 'Abstract Canvas Print', photos: 4, gradient: 'linear-gradient(135deg,#e8e0d8,#faf8f5)', images: ['https://images.unsplash.com/photo-1544816155-12df9643f363?w=600'], price: 1200 },
+  { name: 'Digital Art Bundle', photos: 6, gradient: 'linear-gradient(135deg,#e8e0d8,#faf8f5)', images: ['https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600'], price: 500 },
+  { name: 'Earth Tone Teapot', photos: 3, gradient: 'linear-gradient(135deg,#e8e0d8,#faf8f5)', images: ['https://images.unsplash.com/photo-1610701596007-11502861dcfa?w=600'], price: 3500 },
 ])
 
-const newProduct = reactive({ name: '', description: '', images: [], follower: 0, fan: 0, patron: 0 })
+const newProduct = reactive({ name: '', description: '', images: [], price: 0 })
 
 const triggerUpload = () => {
   fileInput.value.click()
@@ -158,12 +132,10 @@ const createProduct = () => {
     photos: newProduct.images.length,
     gradient: 'linear-gradient(135deg,#f0f0f0,#e0e0e0)',
     images: [...newProduct.images],
-    follower: newProduct.follower,
-    fan: newProduct.fan,
-    patron: newProduct.patron,
+    price: newProduct.price,
   })
   
-  Object.assign(newProduct, { name: '', description: '', images: [], follower: 0, fan: 0, patron: 0 })
+  Object.assign(newProduct, { name: '', description: '', images: [], price: 0 })
   showAddProduct.value = false
 }
 </script>
@@ -279,34 +251,30 @@ const createProduct = () => {
   text-overflow: ellipsis;
 }
 
-.tier-prices {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 24px;
-}
-
-.tier-row {
+.price-display {
   display: flex;
   justify-content: space-between;
-  font-size: 14px;
-  color: #555;
-}
-
-.tier-badge {
-  display: flex;
   align-items: center;
-  gap: 8px;
+  margin-bottom: 24px;
+  padding: 12px;
+  background: #fdfaf8;
+  border-radius: 8px;
+  border: 1px solid #f4f0ea;
 }
 
-.tier-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
+.price-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  color: #888;
+  font-weight: 600;
 }
-.follower-dot { background: #3B82F6; }
-.fan-dot { background: #F97316; }
-.patron-dot { background: #8B5CF6; }
+
+.price-value {
+  font-family: var(--font-heading);
+  font-size: 20px;
+  font-weight: 700;
+  color: #C4622D;
+}
 
 .edit-btn {
   width: 100%;
@@ -476,17 +444,10 @@ const createProduct = () => {
   font-size: 24px;
 }
 
-.tier-inputs {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-}
-
-.tier-input-card {
-  padding: 16px;
-  border: 1px solid #e8e0d8;
-  border-radius: 8px;
-  background: #faf8f5;
+.price-input-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .currency-input {
@@ -496,8 +457,8 @@ const createProduct = () => {
   background: #fff;
   border: 1px solid #e8e0d8;
   border-radius: 6px;
-  padding: 8px 12px;
-  margin-top: 12px;
+  padding: 12px 16px;
+  width: 200px;
 }
 
 .currency-input input {
@@ -505,7 +466,14 @@ const createProduct = () => {
   outline: none;
   width: 100%;
   font-family: var(--font-body);
-  font-size: 15px;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.field-hint {
+  font-size: 13px;
+  color: #888;
+  margin: 0;
 }
 
 .modal-footer {

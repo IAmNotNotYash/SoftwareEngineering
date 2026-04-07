@@ -20,6 +20,17 @@ export const getRecentStories = async () => {
   ]
 }
 
+export const getAllCatalogues = async () => {
+  await new Promise((resolve) => setTimeout(resolve, 600))
+  return [
+    { id: 1, title: "The Earth Tones Collection", artist: "Luna Ceramics", date: "2 days ago", cover: "https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&fit=crop&q=80&w=800" },
+    { id: 2, title: "Weaving Shadows", artist: "Mihir Desai", date: "4 days ago", cover: "https://images.unsplash.com/photo-1541961017774-22349e4a1262?auto=format&fit=crop&q=80&w=800" },
+    { id: 3, title: "Roots of Bamboo", artist: "Earth Tones", date: "1 week ago", cover: "https://images.unsplash.com/photo-1620189507195-68309c04c4d0?auto=format&fit=crop&q=80&w=800" },
+    { id: 4, title: "Minimalist Metals", artist: "Aurum Studio", date: "2 weeks ago", cover: "https://images.unsplash.com/photo-1599643478524-fb524458f407?auto=format&fit=crop&q=80&w=800" },
+    { id: 5, title: "Indigo Narratives", artist: "Tara Singh", date: "3 weeks ago", cover: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=800" },
+  ]
+}
+
 export const getCatalogue = async (id) => {
   await new Promise((resolve) => setTimeout(resolve, 400))
   // Mock data for a specific catalogue
@@ -73,6 +84,18 @@ export const getArtistsToFollow = async () => {
     { id: 2, name: "Scribe Co.", category: "Stationery", followers: "840", avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&q=80&w=200" },
     { id: 3, name: "Lumina", category: "Home Decor", followers: "4.1k", avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=200" },
     { id: 4, name: "Canvas & Clay", category: "Mixed Media", followers: "1.1k", avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=200" },
+  ]
+}
+
+export const getAllArtists = async () => {
+  await new Promise((resolve) => setTimeout(resolve, 500))
+  return [
+    { id: 1, name: "Aurum Studio", category: "Jewelry", followers: "2.4k", avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200" },
+    { id: 2, name: "Scribe Co.", category: "Stationery", followers: "840", avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&q=80&w=200" },
+    { id: 3, name: "Lumina", category: "Home Decor", followers: "4.1k", avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=200" },
+    { id: 4, name: "Canvas & Clay", category: "Mixed Media", followers: "1.1k", avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=200" },
+    { id: 5, name: "Luna Ceramics", category: "Ceramics", followers: "4.1k", avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=200" },
+    { id: 6, name: "Mihir Desai", category: "Fine Art", followers: "3.2k", avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=200" },
   ]
 }
 
@@ -133,6 +156,10 @@ export const getArtistDetails = async (id) => {
         profileImage: id === '2' ? 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=400' : 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=400',
         coverImage: 'https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&fit=crop&q=80&w=1200',
         followers: 1240,
+        catalogues: [
+          { id: 1, title: "The Earth Tones Collection", date: "2 days ago", cover: "https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&fit=crop&q=80&w=800" },
+          { id: 3, title: "Roots of Bamboo", artist: "Earth Tones", date: "1 week ago", cover: "https://images.unsplash.com/photo-1620189507195-68309c04c4d0?auto=format&fit=crop&q=80&w=800" },
+        ],
         products: [
           { 
             id: 101, 

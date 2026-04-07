@@ -36,6 +36,23 @@
 
         <div class="divider"></div>
 
+        <!-- Artist's Catalogues -->
+        <div class="catalogues-section" v-if="artist.catalogues && artist.catalogues.length > 0">
+          <h2>Latest Catalogues</h2>
+          <div class="catalogues-grid">
+            <div v-for="catalogue in artist.catalogues" :key="catalogue.id" class="catalogue-card">
+              <div class="catalogue-image" :style="{ backgroundImage: `url(${catalogue.cover})` }"></div>
+              <div class="catalogue-info">
+                <div class="catalogue-date">{{ catalogue.date }}</div>
+                <h3 class="catalogue-title">{{ catalogue.title }}</h3>
+                <RouterLink :to="`/buyer/catalogue/${catalogue.id}`" class="view-catalogue-link">View Catalogue</RouterLink>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
         <!-- Artist's Library/Products -->
         <div class="portfolio-section">
           <h2>Artworks by {{ artist.name }}</h2>
@@ -199,6 +216,86 @@ const toggleFollow = () => {
   height: 1px;
   background: #e8e0d8;
   margin: 40px 0;
+}
+
+/* Catalogues Section Styles */
+.catalogues-section {
+  margin-bottom: 60px;
+}
+
+.catalogues-section h2 {
+  font-family: 'Playfair Display', serif;
+  font-size: 28px;
+  color: #000;
+  margin-bottom: 32px;
+}
+
+.catalogues-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 32px;
+}
+
+.catalogue-card {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #e8e0d8;
+  display: flex;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.catalogue-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+}
+
+.catalogue-image {
+  width: 140px;
+  height: 180px;
+  background-size: cover;
+  background-position: center;
+  flex-shrink: 0;
+}
+
+.catalogue-info {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.catalogue-date {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #C4622D;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.catalogue-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 20px;
+  font-weight: 600;
+  color: #000;
+  margin-bottom: 20px;
+  line-height: 1.3;
+}
+
+.view-catalogue-link {
+  font-size: 13px;
+  font-weight: 600;
+  color: #000;
+  text-decoration: none;
+  border-bottom: 2px solid #C4622D;
+  padding-bottom: 2px;
+  align-self: flex-start;
+  transition: color 0.2s;
+}
+
+.view-catalogue-link:hover {
+  color: #C4622D;
 }
 
 .portfolio-section h2 {
