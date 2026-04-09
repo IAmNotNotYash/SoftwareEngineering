@@ -70,7 +70,7 @@
                 </RouterLink>
                 <div class="product-footer">
                   <span class="product-price">₹{{ product.price.toLocaleString('en-IN') }}</span>
-                  <button class="add-cart-btn" @click="cartState.addItem(product)">Add to Cart</button>
+                  <button class="add-cart-btn" @click="cartStore.addItem(product.id)">Add to Cart</button>
                 </div>
               </div>
             </div>
@@ -86,7 +86,10 @@ import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import BuyerNavbar from '../../components/BuyerNavbar.vue'
 import { getArtistDetails } from '../../api/buyer.js'
-import { cartState } from '../../store/cart.js'
+import { followArtist, unfollowArtist, checkFollowStatus } from '../../api/social.js'
+import { useCartStore } from '../../stores/cart.js'
+
+const cartStore = useCartStore()
 
 const route = useRoute()
 const artist = ref(null)
@@ -95,10 +98,29 @@ const isFollowing = ref(false)
 onMounted(async () => {
   const id = route.params.id || '1'
   artist.value = await getArtistDetails(id)
+  
+  // Check if current user is following this artist
+  try {
+    const res = await checkFollowStatus(id)
+    isFollowing.value = res.is_following
+  } catch (e) {
+    console.error('Follow check failed:', e)
+  }
 })
 
-const toggleFollow = () => {
-  isFollowing.value = !isFollowing.value
+const toggleFollow = async () => {
+  const artistId = artist.value.id
+  try {
+    if (isFollowing.value) {
+      await unfollowArtist(artistId)
+      isFollowing.value = false
+    } else {
+      await followArtist(artistId)
+      isFollowing.value = true
+    }
+  } catch (e) {
+    alert('Action failed: ' + e.message)
+  }
 }
 </script>
 

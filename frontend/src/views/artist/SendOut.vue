@@ -122,9 +122,6 @@
               </div>
               <div class="attachment-btn">View Catalogue</div>
             </div>
-              </div>
-              <div class="attachment-btn">View Catalogue</div>
-            </div>
           </div>
         </div>
       </div>

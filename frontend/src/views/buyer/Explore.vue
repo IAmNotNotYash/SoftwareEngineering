@@ -60,7 +60,13 @@
               <RouterLink :to="`/buyer/artist/${artist.id}`" class="artist-name">{{ artist.name }}</RouterLink>
               <div class="artist-meta">{{ artist.category }} • {{ artist.followers }} Followers</div>
             </div>
-            <button class="follow-btn">Follow</button>
+            <button 
+              class="follow-btn" 
+              :class="{ 'is-following': followingIds.has(artist.id) }" 
+              @click="handleFollow(artist.id)"
+            >
+              {{ followingIds.has(artist.id) ? 'Following' : 'Follow' }}
+            </button>
           </div>
         </div>
         <div v-if="filteredArtists.length === 0" class="no-results">No artists found.</div>
@@ -73,11 +79,13 @@
 import { ref, computed, onMounted } from 'vue'
 import BuyerNavbar from '../../components/BuyerNavbar.vue'
 import { getAllCatalogues, getAllArtists } from '../../api/buyer.js'
+import { followArtist, unfollowArtist, checkFollowStatus, getFollowing } from '../../api/social.js'
 
 const searchQuery = ref('')
 const searchType = ref('all')
 const catalogues = ref([])
 const artists = ref([])
+const followingIds = ref(new Set())
 
 const showAllCatalogues = ref(false)
 const showAllArtists = ref(false)
@@ -91,15 +99,39 @@ const searchPlaceholder = computed(() => {
 onMounted(async () => {
   catalogues.value = await getAllCatalogues()
   artists.value = await getAllArtists()
+  
+  // Check which artists are already followed
+  try {
+    const followed = await getFollowing()
+    followed.forEach(a => followingIds.value.add(a.id))
+  } catch (e) {
+    console.warn('Could not fetch following list:', e)
+  }
 })
+
+async function handleFollow(artistId) {
+  try {
+    if (followingIds.value.has(artistId)) {
+      await unfollowArtist(artistId)
+      followingIds.value.delete(artistId)
+    } else {
+      await followArtist(artistId)
+      followingIds.value.add(artistId)
+    }
+    // Force reactivity update for the Set by creating a new reference
+    followingIds.value = new Set(followingIds.value)
+  } catch (e) {
+    alert('Action failed: ' + e.message)
+  }
+}
 
 const filteredCatalogues = computed(() => {
   if (searchType.value === 'artist') return []
   if (!searchQuery.value) return catalogues.value
   const query = searchQuery.value.toLowerCase()
-  return catalogues.value.filter(c => 
-    c.title.toLowerCase().includes(query) || 
-    c.artist.toLowerCase().includes(query)
+  return (catalogues.value || []).filter(c => 
+    (c.title || '').toLowerCase().includes(query) || 
+    (c.artist || '').toLowerCase().includes(query)
   )
 })
 
@@ -107,9 +139,9 @@ const filteredArtists = computed(() => {
   if (searchType.value === 'catalogue') return []
   if (!searchQuery.value) return artists.value
   const query = searchQuery.value.toLowerCase()
-  return artists.value.filter(a => 
-    a.name.toLowerCase().includes(query) || 
-    a.category.toLowerCase().includes(query)
+  return (artists.value || []).filter(a => 
+    (a.name || '').toLowerCase().includes(query) || 
+    (a.category || '').toLowerCase().includes(query)
   )
 })
 
@@ -381,6 +413,15 @@ const displayedArtists = computed(() => {
 .follow-btn:hover {
   background: #C4622D;
   color: #fff;
+}
+
+.follow-btn.is-following {
+  background: #2D2A26;
+  color: #fff;
+}
+
+.follow-btn.is-following:hover {
+  background: #d94242; /* Red for unfollow hint */
 }
 
 .no-results {

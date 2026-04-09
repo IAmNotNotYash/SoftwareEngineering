@@ -65,7 +65,7 @@ def list_catalogues():
         q = q.filter(Catalogue.title.ilike(f'%{search}%'))
 
     catalogues = q.order_by(Catalogue.published_at.desc()).all()
-    return jsonify({'catalogues': [c.to_dict() for c in catalogues]}), 200
+    return jsonify([c.to_dict() for c in catalogues]), 200
 
 
 # ── PUBLIC: Get single catalogue (records a view) ─────────────────────────────

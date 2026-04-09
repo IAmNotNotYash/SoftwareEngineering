@@ -177,14 +177,24 @@ async function handleCheckout() {
   // Build payment snapshot
   let payment_snapshot
   if (selectedPayment.value === 'card') {
-    payment_snapshot = { method: 'card', last4: cardInfo.value.number.slice(-4) || '****', expiry: cardInfo.value.expiry }
+    const [month, year] = (cardInfo.value.expiry || '00/00').split('/')
+    payment_snapshot = { 
+      method: 'card', 
+      card_type: 'Visa', // Mock
+      last_4: cardInfo.value.number.slice(-4) || '****', 
+      expiry_month: month || '12',
+      expiry_year: year || '2028'
+    }
   } else {
     payment_snapshot = { method: 'upi', upi_id: upiId.value || 'user@upi' }
   }
 
   statusMessage.value = 'Placing your order...'
   try {
-    await placeOrder({ shipping_address_snapshot, payment_snapshot })
+    await placeOrder({ 
+      shipping_address: shipping_address_snapshot, 
+      payment: payment_snapshot 
+    })
     await cartStore.clearCart()
     orderPlaced.value = true
   } catch (err) {

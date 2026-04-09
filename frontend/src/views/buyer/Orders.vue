@@ -22,6 +22,11 @@
               <div class="item-details">
                 <div class="item-title">{{ item.title }}</div>
                 <div class="item-artist">{{ item.artist }}</div>
+                <RouterLink 
+                  v-if="order.status === 'delivered'"
+                  :to="`/buyer/product/${item.product_id}#reviews`" 
+                  class="review-link"
+                >Write a Review</RouterLink>
               </div>
             </div>
           </div>
@@ -227,6 +232,18 @@ const EVENT_LABEL = {
   color: #888;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.review-link {
+  font-size: 12px;
+  color: #C4622D;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.review-link:hover {
+  text-decoration: underline;
 }
 
 .order-footer {

@@ -39,11 +39,13 @@
           <div class="product-price">₹{{ product.price.toLocaleString('en-IN') }}</div>
 
           <div class="stock-status">
-            <span v-if="product.inStock" class="in-stock">● In Stock</span>
+            <span v-if="product.in_stock" class="in-stock">● In Stock</span>
             <span v-else class="out-stock">● Sold Out</span>
           </div>
 
-          <button class="add-cart-btn" @click="cartState.addItem(product)" :disabled="!product.inStock">Add to Cart</button>
+          <button class="add-cart-btn" @click="handleAddToCart" :disabled="!product.in_stock || addingToCart">
+            {{ addingToCart ? 'Adding...' : (product.in_stock ? 'Add to Cart' : 'Sold Out') }}
+          </button>
 
           <div class="info-section">
             <h3>Description</h3>
@@ -117,9 +119,10 @@ import { useRoute } from 'vue-router'
 import BuyerNavbar from '../../components/BuyerNavbar.vue'
 import { getProductDetails } from '../../api/buyer.js'
 import { getReviews, createReview } from '../../api/social.js'
-import { cartState } from '../../store/cart.js'
+import { useCartStore } from '../../stores/cart.js'
 import { useAuthStore } from '../../stores/auth.js'
 
+const cartStore = useCartStore()
 const authStore = useAuthStore()
 const route = useRoute()
 const product = ref(null)
@@ -129,12 +132,13 @@ const reviews = ref([])
 const newReviewBody = ref('')
 const newRating = ref(5)
 const submittingReview = ref(false)
+const addingToCart = ref(false)
 
 onMounted(async () => {
   const id = route.params.id
   product.value = await getProductDetails(id)
   if (product.value) {
-    activeImage.value = product.value.image
+    activeImage.value = product.value.image || (product.value.images && product.value.images[0] ? product.value.images[0].image_url : '')
     
     // Load reviews
     try {
@@ -142,6 +146,19 @@ onMounted(async () => {
     } catch (e) { console.error(e) }
   }
 })
+
+async function handleAddToCart() {
+  if (!product.value) return
+  addingToCart.value = true
+  try {
+    await cartStore.addItem(product.value.id)
+    alert('Added to cart!')
+  } catch (e) {
+    alert(e.message)
+  } finally {
+    addingToCart.value = false
+  }
+}
 
 async function submitReview() {
   if (!newReviewBody.value.trim()) return

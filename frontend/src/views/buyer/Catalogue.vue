@@ -98,8 +98,8 @@
                 </RouterLink>
                 <div class="product-footer">
                   <span class="product-price">₹{{ product.price.toLocaleString('en-IN') }}</span>
-                  <button class="add-cart-btn" @click="handleAddToCart(product)" :disabled="addingId === product.id">
-                    {{ addingId === product.id ? '...' : 'Add to Cart' }}
+                  <button class="add-cart-btn" @click="handleAddToCart(product)" :disabled="addingId === product.id || !product.in_stock">
+                    {{ addingId === product.id ? '...' : (product.in_stock ? 'Add to Cart' : 'Sold Out') }}
                   </button>
                 </div>
               </div>

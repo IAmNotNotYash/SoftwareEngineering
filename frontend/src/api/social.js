@@ -42,6 +42,10 @@ export function checkFollowStatus(artist_id) {
   return request(`/follows/check/${artist_id}`)
 }
 
+export function getFollowing() {
+  return request('/following')
+}
+
 export function getPosts({ type = '', artist_id = '' } = {}) {
   const params = new URLSearchParams()
   if (type) params.set('type', type)
