@@ -227,7 +227,6 @@ const platforms = ref([
   { id: 'tg', icon: '✈️', label: 'Telegram', active: true },
 ])
 
-<<<<<<< HEAD
 const broadcastHistory = ref([
   { id: 1, date: '2026-03-28', title: 'Summer Art Collection', status: 'Delivered', reach: 18402, engagement: '12.4%', platforms: ['✉️', '✈️'] },
   { id: 2, date: '2026-03-15', title: 'Flash Sale: Ceramics', status: 'Delivered', reach: 17950, engagement: '8.1%', platforms: ['✉️', '📸', '📘'] },
@@ -253,9 +252,6 @@ const getRandomColor = () => {
   return colors[Math.floor(Math.random() * colors.length)]
 }
 
-=======
-<<<<<<< HEAD
->>>>>>> b601b48
 onMounted(async () => {
   try {
     const [audienceData, catalogueData] = await Promise.all([
@@ -273,37 +269,7 @@ onMounted(async () => {
     loading.value = false
   }
 })
-<<<<<<< HEAD
-=======
 
-=======
-const broadcastHistory = ref([
-  { id: 1, date: '2026-03-28', title: 'Summer Art Collection', status: 'Delivered', reach: 18402, engagement: '12.4%', platforms: ['✉️', '✈️'] },
-  { id: 2, date: '2026-03-15', title: 'Flash Sale: Ceramics', status: 'Delivered', reach: 17950, engagement: '8.1%', platforms: ['✉️', '📸', '📘'] },
-  { id: 3, date: '2026-02-28', title: 'Exclusive Reveal', status: 'Delivered', reach: 16200, engagement: '15.2%', platforms: ['✉️', '✈️'] },
-])
-
-const subscribers = ref([
-  { id: 1, name: 'Aarav Sharma', type: 'Patron', joined: '2025-11-20', orders: 12, value: '₹42,500' },
-  { id: 2, name: 'Mira Desai', type: 'Fan', joined: '2026-01-05', orders: 4, value: '₹8,200' },
-  { id: 3, name: 'Rohan Gupta', type: 'Follower', joined: '2026-02-14', orders: 1, value: '₹1,200' },
-  { id: 4, name: 'Kavya Singh', type: 'Patron', joined: '2025-09-12', orders: 28, value: '₹89,400' },
-  { id: 5, name: 'Aditya Patel', type: 'Follower', joined: '2026-03-01', orders: 0, value: '₹0' },
-  { id: 6, name: 'Sana Khan', type: 'Fan', joined: '2026-03-10', orders: 2, value: '₹3,500' },
-])
-
-const filteredSubscribers = computed(() => {
-  if (!searchQuery.value) return subscribers.value
-  return subscribers.value.filter(s => s.name.toLowerCase().includes(searchQuery.value.toLowerCase()))
-})
-
-const getRandomColor = () => {
-  const colors = ['#C4622D', '#6A7E6A', '#2D3748', '#8B4513', '#556B2F']
-  return colors[Math.floor(Math.random() * colors.length)]
-}
-
->>>>>>> 8547dcb (feat(buyer): implement explore page with targeted search and artist catalogue list)
->>>>>>> b601b48
 const resetForm = () => {
   message.value = ''
   selectedIntent.value = 'launch'

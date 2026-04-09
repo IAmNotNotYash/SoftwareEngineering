@@ -132,7 +132,6 @@ const cartStore = useCartStore()
 const authStore = useAuthStore()
 
 const catalogue = ref(null)
-const productSearch = ref('')
 const isLiked = ref(false)
 const addingId = ref(null)
 const productSearch = ref('')
