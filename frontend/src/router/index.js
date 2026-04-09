@@ -51,7 +51,7 @@ const routes = [
   
   // Buyer routes
   { path: '/buyer/dashboard',    component: BuyerDashboard, meta: { requiresAuth: true, role: 'buyer' } },
-  { path: '/buyer/explore',     component: BuyerExplore, meta: { requiresAuth: true, role: 'buyer' } },
+  { path: '/buyer/explore',      component: BuyerExplore, meta: { requiresAuth: true, role: 'buyer' } },
   { path: '/buyer/orders',       component: BuyerOrders, meta: { requiresAuth: true, role: 'buyer' } },
   { path: '/buyer/cart',         component: BuyerCart, meta: { requiresAuth: true, role: 'buyer' } },
   { path: '/buyer/catalogue/:id',component: BuyerCatalogue, meta: { requiresAuth: true, role: 'buyer' } },

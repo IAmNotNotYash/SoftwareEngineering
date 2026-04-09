@@ -109,7 +109,6 @@
             No products match your search within this catalogue.
           </div>
         </div>
-        
       </div>
     </div>
     
@@ -136,6 +135,7 @@ const catalogue = ref(null)
 const productSearch = ref('')
 const isLiked = ref(false)
 const addingId = ref(null)
+const productSearch = ref('')
 
 const reviews = ref([])
 const newReviewBody = ref('')
