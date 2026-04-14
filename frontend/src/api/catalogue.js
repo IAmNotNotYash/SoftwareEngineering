@@ -1,4 +1,4 @@
-const API_URL = 'http://127.0.0.1:5000/api/catalogues'
+const API_URL = 'http://localhost:5000/api/catalogues'
 
 function authHeaders() {
   const token = sessionStorage.getItem('token')
@@ -20,18 +20,27 @@ async function handleResponse(res) {
 }
 
 async function request(path, options = {}) {
+  const headers = { ...authHeaders(), ...(options.headers || {}) }
+  
+  // Browsers automatically set the correct boundary for FormData
+  // so we must remove Content-Type if we're sending a FormData object
+  if (options.body instanceof FormData) {
+    delete headers['Content-Type']
+  }
+
   const res = await fetch(`${API_URL}${path}`, {
     ...options,
-    headers: { ...authHeaders(), ...(options.headers || {}) },
+    headers
   })
   return handleResponse(res)
 }
 
 // ── Browse ────────────────────────────────────────────────────────────────────
-export function getCatalogues({ status = 'live', artist_id = '', search = '' } = {}) {
+export function getCatalogues({ status = 'live', artist_id = '', user_id = '', search = '' } = {}) {
   const params = new URLSearchParams()
   if (status) params.set('status', status)
   if (artist_id) params.set('artist_id', artist_id)
+  if (user_id) params.set('user_id', user_id)
   if (search) params.set('search', search)
   const qs = params.toString()
   return request(`${qs ? '?' + qs : ''}`)
@@ -66,4 +75,23 @@ export function unlikeCatalogue(id) {
 
 export function checkLike(id) {
   return request(`/${id}/like`, { method: 'GET' })
+}
+
+// ── Visuals Upload ────────────────────────────────────────────────────────────
+export function uploadCatalogueCover(id, file) {
+  const fd = new FormData()
+  fd.append('file', file)
+  return request(`/${id}/upload-cover`, {
+    method: 'POST',
+    body: fd
+  })
+}
+
+export function uploadStoryFrame(id, file) {
+  const fd = new FormData()
+  fd.append('file', file)
+  return request(`/${id}/upload-story`, {
+    method: 'POST',
+    body: fd
+  })
 }

@@ -66,6 +66,7 @@ const routes = [
   { path: '/artist/dashboard',    component: ArtistDashboard, meta: { requiresAuth: true, role: 'artist' } },
   { path: '/artist/catalogues',     component: ArtistCampaign, meta: { requiresAuth: true, role: 'artist' }  },
   { path: '/artist/newcatalogue',     component: ArtistNewCampaign, meta: { requiresAuth: true, role: 'artist' }  },
+  { path: '/artist/edit-catalogue/:id', component: ArtistNewCampaign, meta: { requiresAuth: true, role: 'artist' }  },
   { path: '/artist/products',     component: ArtistProducts, meta: { requiresAuth: true, role: 'artist' }  },
   { path: '/artist/sendouts',     component: ArtistSendOuts, meta: { requiresAuth: true, role: 'artist' }  },
   { path: '/artist/orders',     component: ArtistOrders, meta: { requiresAuth: true, role: 'artist' }  },

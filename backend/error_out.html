@@ -1,0 +1,768 @@
+<!doctype html>
+<html lang=en>
+  <head>
+    <title>sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedColumn) column products.catalogue_id does not exist
+LINE 2: ...tock, products.is_deleted AS products_is_deleted, products.c...
+                                                             ^
+
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT products.id AS products_id, products.artist_id AS products_artist_id, products.title AS products_title, products.description AS products_description, products.materials AS products_materials, products.dimensions AS products_dimensions, products.price AS products_price, products.category AS products_category, products.in_stock AS products_in_stock, products.is_deleted AS products_is_deleted, products.catalogue_id AS products_catalogue_id, products.created_at AS products_created_at, products.updated_at AS products_updated_at 
+FROM products 
+WHERE %(param_1)s = products.catalogue_id AND products.is_deleted = false) AS anon_1]
+[parameters: {&#39;param_1&#39;: &#39;394706d7-a64d-41a5-bd20-f405c72567f0&#39;}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+ // Werkzeug Debugger</title>
+    <link rel="stylesheet" href="?__debugger__=yes&amp;cmd=resource&amp;f=style.css">
+    <link rel="shortcut icon"
+        href="?__debugger__=yes&amp;cmd=resource&amp;f=console.png">
+    <script src="?__debugger__=yes&amp;cmd=resource&amp;f=debugger.js"></script>
+    <script>
+      var CONSOLE_MODE = false,
+          EVALEX = true,
+          EVALEX_TRUSTED = false,
+          SECRET = "svBuEDeHVaYNcN4LVSP4";
+    </script>
+  </head>
+  <body style="background-color: #fff">
+    <div class="debugger">
+<h1>sqlalchemy.exc.ProgrammingError</h1>
+<div class="detail">
+  <p class="errormsg">sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedColumn) column products.catalogue_id does not exist
+LINE 2: ...tock, products.is_deleted AS products_is_deleted, products.c...
+                                                             ^
+
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT products.id AS products_id, products.artist_id AS products_artist_id, products.title AS products_title, products.description AS products_description, products.materials AS products_materials, products.dimensions AS products_dimensions, products.price AS products_price, products.category AS products_category, products.in_stock AS products_in_stock, products.is_deleted AS products_is_deleted, products.catalogue_id AS products_catalogue_id, products.created_at AS products_created_at, products.updated_at AS products_updated_at 
+FROM products 
+WHERE %(param_1)s = products.catalogue_id AND products.is_deleted = false) AS anon_1]
+[parameters: {&#39;param_1&#39;: &#39;394706d7-a64d-41a5-bd20-f405c72567f0&#39;}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+</p>
+</div>
+<h2 class="traceback">Traceback <em>(most recent call last)</em></h2>
+<div class="traceback">
+  <h3></h3>
+  <ul><li><div class="frame" id="frame-3047533115360">
+  <h4>File <cite class="filename">"C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\base.py"</cite>,
+      line <em class="line">1967</em>,
+      in <code class="function">_exec_single_context</code></h4>
+  <div class="source library"><pre class="line before"><span class="ws">                            </span>context,</pre>
+<pre class="line before"><span class="ws">                        </span>):</pre>
+<pre class="line before"><span class="ws">                            </span>evt_handled = True</pre>
+<pre class="line before"><span class="ws">                            </span>break</pre>
+<pre class="line before"><span class="ws">                </span>if not evt_handled:</pre>
+<pre class="line current"><span class="ws">                    </span>self.dialect.do_execute(
+<span class="ws">                    </span>^</pre>
+<pre class="line after"><span class="ws">                        </span>cursor, str_statement, effective_parameters, context</pre>
+<pre class="line after"><span class="ws">                    </span>)</pre>
+<pre class="line after"><span class="ws"></span> </pre>
+<pre class="line after"><span class="ws">            </span>if self._has_events or self.engine._has_events:</pre>
+<pre class="line after"><span class="ws">                </span>self.dispatch.after_cursor_execute(</pre></div>
+</div>
+
+<li><div class="frame" id="frame-3047533115520">
+  <h4>File <cite class="filename">"C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\default.py"</cite>,
+      line <em class="line">952</em>,
+      in <code class="function">do_execute</code></h4>
+  <div class="source library"><pre class="line before"><span class="ws"></span> </pre>
+<pre class="line before"><span class="ws">    </span>def do_executemany(self, cursor, statement, parameters, context=None):</pre>
+<pre class="line before"><span class="ws">        </span>cursor.executemany(statement, parameters)</pre>
+<pre class="line before"><span class="ws"></span> </pre>
+<pre class="line before"><span class="ws">    </span>def do_execute(self, cursor, statement, parameters, context=None):</pre>
+<pre class="line current"><span class="ws">        </span>cursor.execute(statement, parameters)
+<span class="ws">        </span>^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^</pre>
+<pre class="line after"><span class="ws"></span> </pre>
+<pre class="line after"><span class="ws">    </span>def do_execute_no_params(self, cursor, statement, context=None):</pre>
+<pre class="line after"><span class="ws">        </span>cursor.execute(statement)</pre>
+<pre class="line after"><span class="ws"></span> </pre>
+<pre class="line after"><span class="ws">    </span>def is_disconnect(</pre></div>
+</div>
+
+<li><div class="exc-divider">The above exception was the direct cause of the following exception:</div>
+<li><div class="frame" id="frame-3047533111040">
+  <h4>File <cite class="filename">"C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py"</cite>,
+      line <em class="line">1498</em>,
+      in <code class="function">__call__</code></h4>
+  <div class="source library"><pre class="line before"><span class="ws">    </span>) -&gt; cabc.Iterable[bytes]:</pre>
+<pre class="line before"><span class="ws">        </span>&#34;&#34;&#34;The WSGI server calls the Flask application object as the</pre>
+<pre class="line before"><span class="ws">        </span>WSGI application. This calls :meth:`wsgi_app`, which can be</pre>
+<pre class="line before"><span class="ws">        </span>wrapped to apply middleware.</pre>
+<pre class="line before"><span class="ws">        </span>&#34;&#34;&#34;</pre>
+<pre class="line current"><span class="ws">        </span>return self.wsgi_app(environ, start_response)
+<span class="ws">        </span>       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^</pre></div>
+</div>
+
+<li><div class="frame" id="frame-3047533110880">
+  <h4>File <cite class="filename">"C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py"</cite>,
+      line <em class="line">1476</em>,
+      in <code class="function">wsgi_app</code></h4>
+  <div class="source library"><pre class="line before"><span class="ws">            </span>try:</pre>
+<pre class="line before"><span class="ws">                </span>ctx.push()</pre>
+<pre class="line before"><span class="ws">                </span>response = self.full_dispatch_request()</pre>
+<pre class="line before"><span class="ws">            </span>except Exception as e:</pre>
+<pre class="line before"><span class="ws">                </span>error = e</pre>
+<pre class="line current"><span class="ws">                </span>response = self.handle_exception(e)
+<span class="ws">                </span>           ^^^^^^^^^^^^^^^^^^^^^^^^</pre>
+<pre class="line after"><span class="ws">            </span>except:  # noqa: B001</pre>
+<pre class="line after"><span class="ws">                </span>error = sys.exc_info()[1]</pre>
+<pre class="line after"><span class="ws">                </span>raise</pre>
+<pre class="line after"><span class="ws">            </span>return response(environ, start_response)</pre>
+<pre class="line after"><span class="ws">        </span>finally:</pre></div>
+</div>
+
+<li><div class="frame" id="frame-3047533110720">
+  <h4>File <cite class="filename">"C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask_cors\extension.py"</cite>,
+      line <em class="line">176</em>,
+      in <code class="function">wrapped_function</code></h4>
+  <div class="source library"><pre class="line before"><span class="ws">        </span># These error handlers will still respect the behavior of the route</pre>
+<pre class="line before"><span class="ws">        </span>if options.get(&#34;intercept_exceptions&#34;, True):</pre>
+<pre class="line before"><span class="ws"></span> </pre>
+<pre class="line before"><span class="ws">            </span>def _after_request_decorator(f):</pre>
+<pre class="line before"><span class="ws">                </span>def wrapped_function(*args, **kwargs):</pre>
+<pre class="line current"><span class="ws">                    </span>return cors_after_request(app.make_response(f(*args, **kwargs)))
+<span class="ws">                    </span>                                            ^^^^^^^^^^^^^^^^^^</pre>
+<pre class="line after"><span class="ws"></span> </pre>
+<pre class="line after"><span class="ws">                </span>return wrapped_function</pre>
+<pre class="line after"><span class="ws"></span> </pre>
+<pre class="line after"><span class="ws">            </span>if hasattr(app, &#34;handle_exception&#34;):</pre>
+<pre class="line after"><span class="ws">                </span>app.handle_exception = _after_request_decorator(app.handle_exception)</pre></div>
+</div>
+
+<li><div class="frame" id="frame-3047533110560">
+  <h4>File <cite class="filename">"C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py"</cite>,
+      line <em class="line">1473</em>,
+      in <code class="function">wsgi_app</code></h4>
+  <div class="source library"><pre class="line before"><span class="ws">        </span>ctx = self.request_context(environ)</pre>
+<pre class="line before"><span class="ws">        </span>error: BaseException | None = None</pre>
+<pre class="line before"><span class="ws">        </span>try:</pre>
+<pre class="line before"><span class="ws">            </span>try:</pre>
+<pre class="line before"><span class="ws">                </span>ctx.push()</pre>
+<pre class="line current"><span class="ws">                </span>response = self.full_dispatch_request()
+<span class="ws">                </span>           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^</pre>
+<pre class="line after"><span class="ws">            </span>except Exception as e:</pre>
+<pre class="line after"><span class="ws">                </span>error = e</pre>
+<pre class="line after"><span class="ws">                </span>response = self.handle_exception(e)</pre>
+<pre class="line after"><span class="ws">            </span>except:  # noqa: B001</pre>
+<pre class="line after"><span class="ws">                </span>error = sys.exc_info()[1]</pre></div>
+</div>
+
+<li><div class="frame" id="frame-3047533111360">
+  <h4>File <cite class="filename">"C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py"</cite>,
+      line <em class="line">882</em>,
+      in <code class="function">full_dispatch_request</code></h4>
+  <div class="source library"><pre class="line before"><span class="ws">            </span>request_started.send(self, _async_wrapper=self.ensure_sync)</pre>
+<pre class="line before"><span class="ws">            </span>rv = self.preprocess_request()</pre>
+<pre class="line before"><span class="ws">            </span>if rv is None:</pre>
+<pre class="line before"><span class="ws">                </span>rv = self.dispatch_request()</pre>
+<pre class="line before"><span class="ws">        </span>except Exception as e:</pre>
+<pre class="line current"><span class="ws">            </span>rv = self.handle_user_exception(e)
+<span class="ws">            </span>     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^</pre>
+<pre class="line after"><span class="ws">        </span>return self.finalize_request(rv)</pre>
+<pre class="line after"><span class="ws"></span> </pre>
+<pre class="line after"><span class="ws">    </span>def finalize_request(</pre>
+<pre class="line after"><span class="ws">        </span>self,</pre>
+<pre class="line after"><span class="ws">        </span>rv: ft.ResponseReturnValue | HTTPException,</pre></div>
+</div>
+
+<li><div class="frame" id="frame-3047533111200">
+  <h4>File <cite class="filename">"C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask_cors\extension.py"</cite>,
+      line <em class="line">176</em>,
+      in <code class="function">wrapped_function</code></h4>
+  <div class="source library"><pre class="line before"><span class="ws">        </span># These error handlers will still respect the behavior of the route</pre>
+<pre class="line before"><span class="ws">        </span>if options.get(&#34;intercept_exceptions&#34;, True):</pre>
+<pre class="line before"><span class="ws"></span> </pre>
+<pre class="line before"><span class="ws">            </span>def _after_request_decorator(f):</pre>
+<pre class="line before"><span class="ws">                </span>def wrapped_function(*args, **kwargs):</pre>
+<pre class="line current"><span class="ws">                    </span>return cors_after_request(app.make_response(f(*args, **kwargs)))
+<span class="ws">                    </span>                                            ^^^^^^^^^^^^^^^^^^</pre>
+<pre class="line after"><span class="ws"></span> </pre>
+<pre class="line after"><span class="ws">                </span>return wrapped_function</pre>
+<pre class="line after"><span class="ws"></span> </pre>
+<pre class="line after"><span class="ws">            </span>if hasattr(app, &#34;handle_exception&#34;):</pre>
+<pre class="line after"><span class="ws">                </span>app.handle_exception = _after_request_decorator(app.handle_exception)</pre></div>
+</div>
+
+<li><div class="frame" id="frame-3047533112800">
+  <h4>File <cite class="filename">"C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py"</cite>,
+      line <em class="line">880</em>,
+      in <code class="function">full_dispatch_request</code></h4>
+  <div class="source library"><pre class="line before"><span class="ws"></span> </pre>
+<pre class="line before"><span class="ws">        </span>try:</pre>
+<pre class="line before"><span class="ws">            </span>request_started.send(self, _async_wrapper=self.ensure_sync)</pre>
+<pre class="line before"><span class="ws">            </span>rv = self.preprocess_request()</pre>
+<pre class="line before"><span class="ws">            </span>if rv is None:</pre>
+<pre class="line current"><span class="ws">                </span>rv = self.dispatch_request()
+<span class="ws">                </span>     ^^^^^^^^^^^^^^^^^^^^^^^</pre>
+<pre class="line after"><span class="ws">        </span>except Exception as e:</pre>
+<pre class="line after"><span class="ws">            </span>rv = self.handle_user_exception(e)</pre>
+<pre class="line after"><span class="ws">        </span>return self.finalize_request(rv)</pre>
+<pre class="line after"><span class="ws"></span> </pre>
+<pre class="line after"><span class="ws">    </span>def finalize_request(</pre></div>
+</div>
+
+<li><div class="frame" id="frame-3047533111680">
+  <h4>File <cite class="filename">"C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py"</cite>,
+      line <em class="line">865</em>,
+      in <code class="function">dispatch_request</code></h4>
+  <div class="source library"><pre class="line before"><span class="ws">            </span>and req.method == &#34;OPTIONS&#34;</pre>
+<pre class="line before"><span class="ws">        </span>):</pre>
+<pre class="line before"><span class="ws">            </span>return self.make_default_options_response()</pre>
+<pre class="line before"><span class="ws">        </span># otherwise dispatch to the handler for that endpoint</pre>
+<pre class="line before"><span class="ws">        </span>view_args: dict[str, t.Any] = req.view_args  # type: ignore[assignment]</pre>
+<pre class="line current"><span class="ws">        </span>return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+<span class="ws">        </span>       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^</pre>
+<pre class="line after"><span class="ws"></span> </pre>
+<pre class="line after"><span class="ws">    </span>def full_dispatch_request(self) -&gt; Response:</pre>
+<pre class="line after"><span class="ws">        </span>&#34;&#34;&#34;Dispatches the request and on top of that performs request</pre>
+<pre class="line after"><span class="ws">        </span>pre and postprocessing as well as HTTP exception catching and</pre>
+<pre class="line after"><span class="ws">        </span>error handling.</pre></div>
+</div>
+
+<li><div class="frame" id="frame-3047533111840">
+  <h4>File <cite class="filename">"C:\Users\hp\seproject\SoftwareEngineering\backend\app\routes\catalogue.py"</cite>,
+      line <em class="line">169</em>,
+      in <code class="function">list_catalogues</code></h4>
+  <div class="source "><pre class="line before"><span class="ws">    </span>if search:</pre>
+<pre class="line before"><span class="ws">        </span>q = q.filter(Catalogue.title.ilike(f&#39;%{search}%&#39;))</pre>
+<pre class="line before"><span class="ws"></span> </pre>
+<pre class="line before"><span class="ws">    </span>catalogues = q.order_by(Catalogue.published_at.desc()).all()</pre>
+<pre class="line before"><span class="ws">    </span>current_app.logger.info(f&#34;DEBUG Catalogues: Returning {len(catalogues)} catalogues&#34;)</pre>
+<pre class="line current"><span class="ws">    </span>return jsonify({&#39;catalogues&#39;: [c.to_dict() for c in catalogues]}), 200
+<span class="ws">    </span>                               ^^^^^^^^^^^</pre>
+<pre class="line after"><span class="ws"></span> </pre>
+<pre class="line after"><span class="ws"></span> </pre>
+<pre class="line after"><span class="ws"></span># ── PUBLIC: Get single catalogue (records a view) ─────────────────────────────</pre>
+<pre class="line after"><span class="ws"></span>@catalogue_bp.route(&#39;/&lt;catalogue_id&gt;&#39;, methods=[&#39;GET&#39;])</pre>
+<pre class="line after"><span class="ws"></span>def get_catalogue(catalogue_id):</pre></div>
+</div>
+
+<li><div class="frame" id="frame-3047533112000">
+  <h4>File <cite class="filename">"C:\Users\hp\seproject\SoftwareEngineering\backend\app\models\catalogue.py"</cite>,
+      line <em class="line">66</em>,
+      in <code class="function">to_dict</code></h4>
+  <div class="source "><pre class="line before"><span class="ws">            </span>&#39;artist_note&#39;: self.artist_note,</pre>
+<pre class="line before"><span class="ws">            </span>&#39;published_at&#39;: self.published_at.isoformat() if self.published_at else None,</pre>
+<pre class="line before"><span class="ws">            </span>&#39;created_at&#39;: self.created_at.isoformat(),</pre>
+<pre class="line before"><span class="ws">            </span>&#39;updated_at&#39;: self.updated_at.isoformat(),</pre>
+<pre class="line before"><span class="ws">            </span>&#39;stats&#39;: self.stats.to_dict() if self.stats else None,</pre>
+<pre class="line current"><span class="ws">            </span>&#39;product_count&#39;: self.direct_products.filter_by(is_deleted=False).count()
+<span class="ws">            </span>                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^</pre>
+<pre class="line after"><span class="ws">        </span>}</pre>
+<pre class="line after"><span class="ws">        </span>if include_products:</pre>
+<pre class="line after"><span class="ws">            </span># Now relying on the strict 1-to-many relationship instead of CatalogueProduct</pre>
+<pre class="line after"><span class="ws">            </span>products = [p.to_dict() for p in self.direct_products.filter_by(is_deleted=False).order_by(db.text(&#39;created_at DESC&#39;)).all()]</pre>
+<pre class="line after"><span class="ws">            </span>data[&#39;products&#39;] = products</pre></div>
+</div>
+
+<li><div class="frame" id="frame-3047533112960">
+  <h4>File <cite class="filename">"C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\query.py"</cite>,
+      line <em class="line">3146</em>,
+      in <code class="function">count</code></h4>
+  <div class="source library"><pre class="line before"><span class="ws">            </span>:ref:`migration_20_query_usage`</pre>
+<pre class="line before"><span class="ws"></span> </pre>
+<pre class="line before"><span class="ws">        </span>&#34;&#34;&#34;</pre>
+<pre class="line before"><span class="ws">        </span>col = sql.func.count(sql.literal_column(&#34;*&#34;))</pre>
+<pre class="line before"><span class="ws">        </span>return (  # type: ignore</pre>
+<pre class="line current"><span class="ws">            </span>self._legacy_from_self(col).enable_eagerloads(False).scalar()
+<span class="ws">            </span>^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^</pre>
+<pre class="line after"><span class="ws">        </span>)</pre>
+<pre class="line after"><span class="ws"></span> </pre>
+<pre class="line after"><span class="ws">    </span>def delete(</pre>
+<pre class="line after"><span class="ws">        </span>self,</pre>
+<pre class="line after"><span class="ws">        </span>synchronize_session: SynchronizeSessionArgument = &#34;auto&#34;,</pre></div>
+</div>
+
+<li><div class="frame" id="frame-3047533113120">
+  <h4>File <cite class="filename">"C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\query.py"</cite>,
+      line <em class="line">2835</em>,
+      in <code class="function">scalar</code></h4>
+  <div class="source library"><pre class="line before"><span class="ws">            </span>:meth:`_engine.Result.scalar` - v2 comparable method.</pre>
+<pre class="line before"><span class="ws"></span> </pre>
+<pre class="line before"><span class="ws">        </span>&#34;&#34;&#34;</pre>
+<pre class="line before"><span class="ws">        </span># TODO: not sure why we can&#39;t use result.scalar() here</pre>
+<pre class="line before"><span class="ws">        </span>try:</pre>
+<pre class="line current"><span class="ws">            </span>ret = self.one()
+<span class="ws">            </span>      ^^^^^^^^^^</pre>
+<pre class="line after"><span class="ws">            </span>if not isinstance(ret, collections_abc.Sequence):</pre>
+<pre class="line after"><span class="ws">                </span>return ret</pre>
+<pre class="line after"><span class="ws">            </span>return ret[0]</pre>
+<pre class="line after"><span class="ws">        </span>except sa_exc.NoResultFound:</pre>
+<pre class="line after"><span class="ws">            </span>return None</pre></div>
+</div>
+
+<li><div class="frame" id="frame-3047533113280">
+  <h4>File <cite class="filename">"C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\query.py"</cite>,
+      line <em class="line">2808</em>,
+      in <code class="function">one</code></h4>
+  <div class="source library"><pre class="line before"><span class="ws">            </span>:meth:`_engine.Result.one` - v2 comparable method.</pre>
+<pre class="line before"><span class="ws"></span> </pre>
+<pre class="line before"><span class="ws">            </span>:meth:`_engine.Result.scalar_one` - v2 comparable method.</pre>
+<pre class="line before"><span class="ws"></span> </pre>
+<pre class="line before"><span class="ws">        </span>&#34;&#34;&#34;</pre>
+<pre class="line current"><span class="ws">        </span>return self._iter().one()  # type: ignore
+<span class="ws">        </span>       ^^^^^^^^^^^^</pre>
+<pre class="line after"><span class="ws"></span> </pre>
+<pre class="line after"><span class="ws">    </span>def scalar(self) -&gt; Any:</pre>
+<pre class="line after"><span class="ws">        </span>&#34;&#34;&#34;Return the first element of the first result or None</pre>
+<pre class="line after"><span class="ws">        </span>if no rows present.  If multiple rows are returned,</pre>
+<pre class="line after"><span class="ws">        </span>raises :class:`_exc.MultipleResultsFound`.</pre></div>
+</div>
+
+<li><div class="frame" id="frame-3047533113440">
+  <h4>File <cite class="filename">"C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\query.py"</cite>,
+      line <em class="line">2857</em>,
+      in <code class="function">_iter</code></h4>
+  <div class="source library"><pre class="line before"><span class="ws">    </span>def _iter(self) -&gt; Union[ScalarResult[_T], Result[_T]]:</pre>
+<pre class="line before"><span class="ws">        </span># new style execution.</pre>
+<pre class="line before"><span class="ws">        </span>params = self._params</pre>
+<pre class="line before"><span class="ws"></span> </pre>
+<pre class="line before"><span class="ws">        </span>statement = self._statement_20()</pre>
+<pre class="line current"><span class="ws">        </span>result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+<span class="ws">        </span>                                              </pre>
+<pre class="line after"><span class="ws">            </span>statement,</pre>
+<pre class="line after"><span class="ws">            </span>params,</pre>
+<pre class="line after"><span class="ws">            </span>execution_options={&#34;_sa_orm_load_options&#34;: self.load_options},</pre>
+<pre class="line after"><span class="ws">        </span>)</pre>
+<pre class="line after"><span class="ws"></span> </pre></div>
+</div>
+
+<li><div class="frame" id="frame-3047533113600">
+  <h4>File <cite class="filename">"C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\session.py"</cite>,
+      line <em class="line">2351</em>,
+      in <code class="function">execute</code></h4>
+  <div class="source library"><pre class="line before"><span class="ws"></span> </pre>
+<pre class="line before"><span class="ws">        </span>:return: a :class:`_engine.Result` object.</pre>
+<pre class="line before"><span class="ws"></span> </pre>
+<pre class="line before"><span class="ws"></span> </pre>
+<pre class="line before"><span class="ws">        </span>&#34;&#34;&#34;</pre>
+<pre class="line current"><span class="ws">        </span>return self._execute_internal(
+<span class="ws">        </span>       </pre>
+<pre class="line after"><span class="ws">            </span>statement,</pre>
+<pre class="line after"><span class="ws">            </span>params,</pre>
+<pre class="line after"><span class="ws">            </span>execution_options=execution_options,</pre>
+<pre class="line after"><span class="ws">            </span>bind_arguments=bind_arguments,</pre>
+<pre class="line after"><span class="ws">            </span>_parent_execute_state=_parent_execute_state,</pre></div>
+</div>
+
+<li><div class="frame" id="frame-3047533113760">
+  <h4>File <cite class="filename">"C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\session.py"</cite>,
+      line <em class="line">2249</em>,
+      in <code class="function">_execute_internal</code></h4>
+  <div class="source library"><pre class="line before"><span class="ws">            </span>return conn.scalar(</pre>
+<pre class="line before"><span class="ws">                </span>statement, params or {}, execution_options=execution_options</pre>
+<pre class="line before"><span class="ws">            </span>)</pre>
+<pre class="line before"><span class="ws"></span> </pre>
+<pre class="line before"><span class="ws">        </span>if compile_state_cls:</pre>
+<pre class="line current"><span class="ws">            </span>result: Result[Any] = compile_state_cls.orm_execute_statement(
+<span class="ws">            </span>                      </pre>
+<pre class="line after"><span class="ws">                </span>self,</pre>
+<pre class="line after"><span class="ws">                </span>statement,</pre>
+<pre class="line after"><span class="ws">                </span>params or {},</pre>
+<pre class="line after"><span class="ws">                </span>execution_options,</pre>
+<pre class="line after"><span class="ws">                </span>bind_arguments,</pre></div>
+</div>
+
+<li><div class="frame" id="frame-3047533113920">
+  <h4>File <cite class="filename">"C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\context.py"</cite>,
+      line <em class="line">306</em>,
+      in <code class="function">orm_execute_statement</code></h4>
+  <div class="source library"><pre class="line before"><span class="ws">        </span>params,</pre>
+<pre class="line before"><span class="ws">        </span>execution_options,</pre>
+<pre class="line before"><span class="ws">        </span>bind_arguments,</pre>
+<pre class="line before"><span class="ws">        </span>conn,</pre>
+<pre class="line before"><span class="ws">    </span>) -&gt; Result:</pre>
+<pre class="line current"><span class="ws">        </span>result = conn.execute(
+<span class="ws">        </span>         </pre>
+<pre class="line after"><span class="ws">            </span>statement, params or {}, execution_options=execution_options</pre>
+<pre class="line after"><span class="ws">        </span>)</pre>
+<pre class="line after"><span class="ws">        </span>return cls.orm_setup_cursor_result(</pre>
+<pre class="line after"><span class="ws">            </span>session,</pre>
+<pre class="line after"><span class="ws">            </span>statement,</pre></div>
+</div>
+
+<li><div class="frame" id="frame-3047533114080">
+  <h4>File <cite class="filename">"C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\base.py"</cite>,
+      line <em class="line">1419</em>,
+      in <code class="function">execute</code></h4>
+  <div class="source library"><pre class="line before"><span class="ws">        </span>try:</pre>
+<pre class="line before"><span class="ws">            </span>meth = statement._execute_on_connection</pre>
+<pre class="line before"><span class="ws">        </span>except AttributeError as err:</pre>
+<pre class="line before"><span class="ws">            </span>raise exc.ObjectNotExecutableError(statement) from err</pre>
+<pre class="line before"><span class="ws">        </span>else:</pre>
+<pre class="line current"><span class="ws">            </span>return meth(
+<span class="ws">            </span>       </pre>
+<pre class="line after"><span class="ws">                </span>self,</pre>
+<pre class="line after"><span class="ws">                </span>distilled_parameters,</pre>
+<pre class="line after"><span class="ws">                </span>execution_options or NO_OPTIONS,</pre>
+<pre class="line after"><span class="ws">            </span>)</pre>
+<pre class="line after"><span class="ws"></span> </pre></div>
+</div>
+
+<li><div class="frame" id="frame-3047533114240">
+  <h4>File <cite class="filename">"C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\sql\elements.py"</cite>,
+      line <em class="line">527</em>,
+      in <code class="function">_execute_on_connection</code></h4>
+  <div class="source library"><pre class="line before"><span class="ws">        </span>execution_options: CoreExecuteOptionsParameter,</pre>
+<pre class="line before"><span class="ws">    </span>) -&gt; Result[Any]:</pre>
+<pre class="line before"><span class="ws">        </span>if self.supports_execution:</pre>
+<pre class="line before"><span class="ws">            </span>if TYPE_CHECKING:</pre>
+<pre class="line before"><span class="ws">                </span>assert isinstance(self, Executable)</pre>
+<pre class="line current"><span class="ws">            </span>return connection._execute_clauseelement(
+<span class="ws">            </span>       </pre>
+<pre class="line after"><span class="ws">                </span>self, distilled_params, execution_options</pre>
+<pre class="line after"><span class="ws">            </span>)</pre>
+<pre class="line after"><span class="ws">        </span>else:</pre>
+<pre class="line after"><span class="ws">            </span>raise exc.ObjectNotExecutableError(self)</pre>
+<pre class="line after"><span class="ws"></span> </pre></div>
+</div>
+
+<li><div class="frame" id="frame-3047533114400">
+  <h4>File <cite class="filename">"C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\base.py"</cite>,
+      line <em class="line">1641</em>,
+      in <code class="function">_execute_clauseelement</code></h4>
+  <div class="source library"><pre class="line before"><span class="ws">            </span>column_keys=keys,</pre>
+<pre class="line before"><span class="ws">            </span>for_executemany=for_executemany,</pre>
+<pre class="line before"><span class="ws">            </span>schema_translate_map=schema_translate_map,</pre>
+<pre class="line before"><span class="ws">            </span>linting=self.dialect.compiler_linting | compiler.WARN_LINTING,</pre>
+<pre class="line before"><span class="ws">        </span>)</pre>
+<pre class="line current"><span class="ws">        </span>ret = self._execute_context(
+<span class="ws">        </span>      </pre>
+<pre class="line after"><span class="ws">            </span>dialect,</pre>
+<pre class="line after"><span class="ws">            </span>dialect.execution_ctx_cls._init_compiled,</pre>
+<pre class="line after"><span class="ws">            </span>compiled_sql,</pre>
+<pre class="line after"><span class="ws">            </span>distilled_parameters,</pre>
+<pre class="line after"><span class="ws">            </span>execution_options,</pre></div>
+</div>
+
+<li><div class="frame" id="frame-3047533114560">
+  <h4>File <cite class="filename">"C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\base.py"</cite>,
+      line <em class="line">1846</em>,
+      in <code class="function">_execute_context</code></h4>
+  <div class="source library"><pre class="line before"><span class="ws">        </span>context.pre_exec()</pre>
+<pre class="line before"><span class="ws"></span> </pre>
+<pre class="line before"><span class="ws">        </span>if context.execute_style is ExecuteStyle.INSERTMANYVALUES:</pre>
+<pre class="line before"><span class="ws">            </span>return self._exec_insertmany_context(dialect, context)</pre>
+<pre class="line before"><span class="ws">        </span>else:</pre>
+<pre class="line current"><span class="ws">            </span>return self._exec_single_context(
+<span class="ws">            </span>       </pre>
+<pre class="line after"><span class="ws">                </span>dialect, context, statement, parameters</pre>
+<pre class="line after"><span class="ws">            </span>)</pre>
+<pre class="line after"><span class="ws"></span> </pre>
+<pre class="line after"><span class="ws">    </span>def _exec_single_context(</pre>
+<pre class="line after"><span class="ws">        </span>self,</pre></div>
+</div>
+
+<li><div class="frame" id="frame-3047533114720">
+  <h4>File <cite class="filename">"C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\base.py"</cite>,
+      line <em class="line">1986</em>,
+      in <code class="function">_exec_single_context</code></h4>
+  <div class="source library"><pre class="line before"><span class="ws">            </span>context.post_exec()</pre>
+<pre class="line before"><span class="ws"></span> </pre>
+<pre class="line before"><span class="ws">            </span>result = context._setup_result_proxy()</pre>
+<pre class="line before"><span class="ws"></span> </pre>
+<pre class="line before"><span class="ws">        </span>except BaseException as e:</pre>
+<pre class="line current"><span class="ws">            </span>self._handle_dbapi_exception(
+<span class="ws">            </span>^</pre>
+<pre class="line after"><span class="ws">                </span>e, str_statement, effective_parameters, cursor, context</pre>
+<pre class="line after"><span class="ws">            </span>)</pre>
+<pre class="line after"><span class="ws"></span> </pre>
+<pre class="line after"><span class="ws">        </span>return result</pre>
+<pre class="line after"><span class="ws"></span> </pre></div>
+</div>
+
+<li><div class="frame" id="frame-3047533114880">
+  <h4>File <cite class="filename">"C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\base.py"</cite>,
+      line <em class="line">2363</em>,
+      in <code class="function">_handle_dbapi_exception</code></h4>
+  <div class="source library"><pre class="line before"><span class="ws"></span> </pre>
+<pre class="line before"><span class="ws">            </span>if newraise:</pre>
+<pre class="line before"><span class="ws">                </span>raise newraise.with_traceback(exc_info[2]) from e</pre>
+<pre class="line before"><span class="ws">            </span>elif should_wrap:</pre>
+<pre class="line before"><span class="ws">                </span>assert sqlalchemy_exception is not None</pre>
+<pre class="line current"><span class="ws">                </span>raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+<span class="ws">                </span>^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^</pre>
+<pre class="line after"><span class="ws">            </span>else:</pre>
+<pre class="line after"><span class="ws">                </span>assert exc_info[1] is not None</pre>
+<pre class="line after"><span class="ws">                </span>raise exc_info[1].with_traceback(exc_info[2])</pre>
+<pre class="line after"><span class="ws">        </span>finally:</pre>
+<pre class="line after"><span class="ws">            </span>del self._reentrant_error</pre></div>
+</div>
+
+<li><div class="frame" id="frame-3047533115040">
+  <h4>File <cite class="filename">"C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\base.py"</cite>,
+      line <em class="line">1967</em>,
+      in <code class="function">_exec_single_context</code></h4>
+  <div class="source library"><pre class="line before"><span class="ws">                            </span>context,</pre>
+<pre class="line before"><span class="ws">                        </span>):</pre>
+<pre class="line before"><span class="ws">                            </span>evt_handled = True</pre>
+<pre class="line before"><span class="ws">                            </span>break</pre>
+<pre class="line before"><span class="ws">                </span>if not evt_handled:</pre>
+<pre class="line current"><span class="ws">                    </span>self.dialect.do_execute(
+<span class="ws">                    </span>^</pre>
+<pre class="line after"><span class="ws">                        </span>cursor, str_statement, effective_parameters, context</pre>
+<pre class="line after"><span class="ws">                    </span>)</pre>
+<pre class="line after"><span class="ws"></span> </pre>
+<pre class="line after"><span class="ws">            </span>if self._has_events or self.engine._has_events:</pre>
+<pre class="line after"><span class="ws">                </span>self.dispatch.after_cursor_execute(</pre></div>
+</div>
+
+<li><div class="frame" id="frame-3047533115200">
+  <h4>File <cite class="filename">"C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\default.py"</cite>,
+      line <em class="line">952</em>,
+      in <code class="function">do_execute</code></h4>
+  <div class="source library"><pre class="line before"><span class="ws"></span> </pre>
+<pre class="line before"><span class="ws">    </span>def do_executemany(self, cursor, statement, parameters, context=None):</pre>
+<pre class="line before"><span class="ws">        </span>cursor.executemany(statement, parameters)</pre>
+<pre class="line before"><span class="ws"></span> </pre>
+<pre class="line before"><span class="ws">    </span>def do_execute(self, cursor, statement, parameters, context=None):</pre>
+<pre class="line current"><span class="ws">        </span>cursor.execute(statement, parameters)
+<span class="ws">        </span>^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^</pre>
+<pre class="line after"><span class="ws"></span> </pre>
+<pre class="line after"><span class="ws">    </span>def do_execute_no_params(self, cursor, statement, context=None):</pre>
+<pre class="line after"><span class="ws">        </span>cursor.execute(statement)</pre>
+<pre class="line after"><span class="ws"></span> </pre>
+<pre class="line after"><span class="ws">    </span>def is_disconnect(</pre></div>
+</div>
+</ul>
+  <blockquote>sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedColumn) column products.catalogue_id does not exist
+LINE 2: ...tock, products.is_deleted AS products_is_deleted, products.c...
+                                                             ^
+
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT products.id AS products_id, products.artist_id AS products_artist_id, products.title AS products_title, products.description AS products_description, products.materials AS products_materials, products.dimensions AS products_dimensions, products.price AS products_price, products.category AS products_category, products.in_stock AS products_in_stock, products.is_deleted AS products_is_deleted, products.catalogue_id AS products_catalogue_id, products.created_at AS products_created_at, products.updated_at AS products_updated_at 
+FROM products 
+WHERE %(param_1)s = products.catalogue_id AND products.is_deleted = false) AS anon_1]
+[parameters: {&#39;param_1&#39;: &#39;394706d7-a64d-41a5-bd20-f405c72567f0&#39;}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+</blockquote>
+</div>
+
+<div class="plain">
+    <p>
+      This is the Copy/Paste friendly version of the traceback.
+    </p>
+    <textarea cols="50" rows="10" name="code" readonly>Traceback (most recent call last):
+  File &#34;C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\base.py&#34;, line 1967, in _exec_single_context
+    self.dialect.do_execute(
+    ^
+  File &#34;C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\default.py&#34;, line 952, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.UndefinedColumn: column products.catalogue_id does not exist
+LINE 2: ...tock, products.is_deleted AS products_is_deleted, products.c...
+                                                             ^
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File &#34;C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py&#34;, line 1498, in __call__
+    return self.wsgi_app(environ, start_response)
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File &#34;C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py&#34;, line 1476, in wsgi_app
+    response = self.handle_exception(e)
+  File &#34;C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask_cors\extension.py&#34;, line 176, in wrapped_function
+    return cors_after_request(app.make_response(f(*args, **kwargs)))
+                                                ~^^^^^^^^^^^^^^^^^
+  File &#34;C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py&#34;, line 1473, in wsgi_app
+    response = self.full_dispatch_request()
+  File &#34;C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py&#34;, line 882, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File &#34;C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask_cors\extension.py&#34;, line 176, in wrapped_function
+    return cors_after_request(app.make_response(f(*args, **kwargs)))
+                                                ~^^^^^^^^^^^^^^^^^
+  File &#34;C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py&#34;, line 880, in full_dispatch_request
+    rv = self.dispatch_request()
+  File &#34;C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py&#34;, line 865, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File &#34;C:\Users\hp\seproject\SoftwareEngineering\backend\app\routes\catalogue.py&#34;, line 169, in list_catalogues
+    return jsonify({&#39;catalogues&#39;: [c.to_dict() for c in catalogues]}), 200
+                                   ~~~~~~~~~^^
+  File &#34;C:\Users\hp\seproject\SoftwareEngineering\backend\app\models\catalogue.py&#34;, line 66, in to_dict
+    &#39;product_count&#39;: self.direct_products.filter_by(is_deleted=False).count()
+                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File &#34;C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\query.py&#34;, line 3146, in count
+    self._legacy_from_self(col).enable_eagerloads(False).scalar()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File &#34;C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\query.py&#34;, line 2835, in scalar
+    ret = self.one()
+  File &#34;C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\query.py&#34;, line 2808, in one
+    return self._iter().one()  # type: ignore
+           ~~~~~~~~~~^^
+  File &#34;C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\query.py&#34;, line 2857, in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+    
+  File &#34;C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\session.py&#34;, line 2351, in execute
+    return self._execute_internal(
+    
+  File &#34;C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\session.py&#34;, line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+    
+  File &#34;C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\context.py&#34;, line 306, in orm_execute_statement
+    result = conn.execute(
+    
+  File &#34;C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\base.py&#34;, line 1419, in execute
+    return meth(
+    
+  File &#34;C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\sql\elements.py&#34;, line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+    
+  File &#34;C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\base.py&#34;, line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+    
+  File &#34;C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\base.py&#34;, line 1846, in _execute_context
+    return self._exec_single_context(
+    
+  File &#34;C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\base.py&#34;, line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+    ^
+  File &#34;C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\base.py&#34;, line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File &#34;C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\base.py&#34;, line 1967, in _exec_single_context
+    self.dialect.do_execute(
+    ^
+  File &#34;C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\default.py&#34;, line 952, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedColumn) column products.catalogue_id does not exist
+LINE 2: ...tock, products.is_deleted AS products_is_deleted, products.c...
+                                                             ^
+
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT products.id AS products_id, products.artist_id AS products_artist_id, products.title AS products_title, products.description AS products_description, products.materials AS products_materials, products.dimensions AS products_dimensions, products.price AS products_price, products.category AS products_category, products.in_stock AS products_in_stock, products.is_deleted AS products_is_deleted, products.catalogue_id AS products_catalogue_id, products.created_at AS products_created_at, products.updated_at AS products_updated_at 
+FROM products 
+WHERE %(param_1)s = products.catalogue_id AND products.is_deleted = false) AS anon_1]
+[parameters: {&#39;param_1&#39;: &#39;394706d7-a64d-41a5-bd20-f405c72567f0&#39;}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+</textarea>
+</div>
+<div class="explanation">
+  The debugger caught an exception in your WSGI application.  You can now
+  look at the traceback which led to the error.  <span class="nojavascript">
+  If you enable JavaScript you can also use additional features such as code
+  execution (if the evalex feature is enabled), automatic pasting of the
+  exceptions and much more.</span>
+</div>
+      <div class="footer">
+        Brought to you by <strong class="arthur">DON'T PANIC</strong>, your
+        friendly Werkzeug powered traceback interpreter.
+      </div>
+    </div>
+
+    <div class="pin-prompt">
+      <div class="inner">
+        <h3>Console Locked</h3>
+        <p>
+          The console is locked and needs to be unlocked by entering the PIN.
+          You can find the PIN printed out on the standard output of your
+          shell that runs the server.
+        <form>
+          <p>PIN:
+            <input type=text name=pin size=14>
+            <input type=submit name=btn value="Confirm Pin">
+        </form>
+      </div>
+    </div>
+  </body>
+</html>
+
+<!--
+
+Traceback (most recent call last):
+  File "C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+    ^
+  File "C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+psycopg2.errors.UndefinedColumn: column products.catalogue_id does not exist
+LINE 2: ...tock, products.is_deleted AS products_is_deleted, products.c...
+                                                             ^
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py", line 1498, in __call__
+    return self.wsgi_app(environ, start_response)
+           ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py", line 1476, in wsgi_app
+    response = self.handle_exception(e)
+  File "C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask_cors\extension.py", line 176, in wrapped_function
+    return cors_after_request(app.make_response(f(*args, **kwargs)))
+                                                ~^^^^^^^^^^^^^^^^^
+  File "C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py", line 1473, in wsgi_app
+    response = self.full_dispatch_request()
+  File "C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py", line 882, in full_dispatch_request
+    rv = self.handle_user_exception(e)
+  File "C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask_cors\extension.py", line 176, in wrapped_function
+    return cors_after_request(app.make_response(f(*args, **kwargs)))
+                                                ~^^^^^^^^^^^^^^^^^
+  File "C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py", line 880, in full_dispatch_request
+    rv = self.dispatch_request()
+  File "C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\flask\app.py", line 865, in dispatch_request
+    return self.ensure_sync(self.view_functions[rule.endpoint])(**view_args)  # type: ignore[no-any-return]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+  File "C:\Users\hp\seproject\SoftwareEngineering\backend\app\routes\catalogue.py", line 169, in list_catalogues
+    return jsonify({'catalogues': [c.to_dict() for c in catalogues]}), 200
+                                   ~~~~~~~~~^^
+  File "C:\Users\hp\seproject\SoftwareEngineering\backend\app\models\catalogue.py", line 66, in to_dict
+    'product_count': self.direct_products.filter_by(is_deleted=False).count()
+                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 3146, in count
+    self._legacy_from_self(col).enable_eagerloads(False).scalar()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 2835, in scalar
+    ret = self.one()
+  File "C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 2808, in one
+    return self._iter().one()  # type: ignore
+           ~~~~~~~~~~^^
+  File "C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\query.py", line 2857, in _iter
+    result: Union[ScalarResult[_T], Result[_T]] = self.session.execute(
+    
+  File "C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2351, in execute
+    return self._execute_internal(
+    
+  File "C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\session.py", line 2249, in _execute_internal
+    result: Result[Any] = compile_state_cls.orm_execute_statement(
+    
+  File "C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\orm\context.py", line 306, in orm_execute_statement
+    result = conn.execute(
+    
+  File "C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 1419, in execute
+    return meth(
+    
+  File "C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\sql\elements.py", line 527, in _execute_on_connection
+    return connection._execute_clauseelement(
+    
+  File "C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 1641, in _execute_clauseelement
+    ret = self._execute_context(
+    
+  File "C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 1846, in _execute_context
+    return self._exec_single_context(
+    
+  File "C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 1986, in _exec_single_context
+    self._handle_dbapi_exception(
+    ^
+  File "C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 2363, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\base.py", line 1967, in _exec_single_context
+    self.dialect.do_execute(
+    ^
+  File "C:\Users\hp\AppData\Local\Programs\Python\Python313\Lib\site-packages\sqlalchemy\engine\default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+sqlalchemy.exc.ProgrammingError: (psycopg2.errors.UndefinedColumn) column products.catalogue_id does not exist
+LINE 2: ...tock, products.is_deleted AS products_is_deleted, products.c...
+                                                             ^
+
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT products.id AS products_id, products.artist_id AS products_artist_id, products.title AS products_title, products.description AS products_description, products.materials AS products_materials, products.dimensions AS products_dimensions, products.price AS products_price, products.category AS products_category, products.in_stock AS products_in_stock, products.is_deleted AS products_is_deleted, products.catalogue_id AS products_catalogue_id, products.created_at AS products_created_at, products.updated_at AS products_updated_at 
+FROM products 
+WHERE %(param_1)s = products.catalogue_id AND products.is_deleted = false) AS anon_1]
+[parameters: {'param_1': '394706d7-a64d-41a5-bd20-f405c72567f0'}]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+
+
+-->

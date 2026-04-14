@@ -42,6 +42,24 @@
           <span style="font-size:13px; color:#888;">{{ catalogue.stats?.total_views || 0 }} views · {{ catalogue.stats?.total_likes || 0 }} likes</span>
         </div>
 
+        <!-- Integrated Stories: Vertical Scroll -->
+        <div class="stories-vertical-section" v-if="catalogue.stories?.length">
+          <h2 class="section-title">Catalogue Stories</h2>
+          <div class="vertical-scroll-container">
+            <div v-for="story in catalogue.stories" :key="story.id" class="story-frame">
+              <div class="frame-media" :style="{ backgroundImage: `url(${story.cover_image_url})` }">
+                <button class="frame-like-btn" @click="toggleStoryLike(story)" :class="{ liked: story.has_liked }">
+                  {{ story.has_liked ? '❤' : '♡' }}
+                </button>
+              </div>
+              <div class="frame-content">
+                <p class="frame-body">{{ story.body }}</p>
+                <div class="frame-footer">{{ story.likes_count }} people loved this frame</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="divider"></div>
 
         <!-- Reviews Section -->
@@ -110,7 +128,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import BuyerNavbar from '../../components/BuyerNavbar.vue'
 import { getCatalogue, likeCatalogue, unlikeCatalogue, checkLike } from '../../api/catalogue.js'
-import { getReviews, createReview } from '../../api/social.js'
+import { getReviews, createReview, likePost, unlikePost } from '../../api/social.js'
 import { useCartStore } from '../../stores/cart.js'
 import { useAuthStore } from '../../stores/auth.js'
 
@@ -164,6 +182,21 @@ async function handleAddToCart(product) {
   try { await cartStore.addItem(product.id) }
   catch (e) { alert(e.message) }
   finally { addingId.value = null }
+}
+
+async function toggleStoryLike(story) {
+  if (!authStore.user) return alert('Please log in to like stories.')
+  try {
+    if (story.has_liked) {
+      await unlikePost(story.id)
+      story.has_liked = false
+      story.likes_count--
+    } else {
+      await likePost(story.id)
+      story.has_liked = true
+      story.likes_count++
+    }
+  } catch (e) { alert(e.message) }
 }
 
 async function submitReview() {
@@ -263,8 +296,77 @@ async function submitReview() {
 /* Story Details Layout */
 .story-details {
   display: flex;
-  gap: 60px;
   margin-bottom: 60px;
+}
+
+/* Stories Vertical Scroll Styles */
+.stories-vertical-section {
+  margin-bottom: 60px;
+}
+
+.vertical-scroll-container {
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.story-frame {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #e8e0d8;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+}
+
+.frame-media {
+  aspect-ratio: 9/16;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+}
+
+.frame-like-btn {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  background: rgba(255,255,255,0.2);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.4);
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  font-size: 24px;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.frame-like-btn.liked {
+  background: white;
+  color: #ff4d4d;
+  border-color: white;
+}
+
+.frame-content {
+  padding: 24px;
+}
+
+.frame-body {
+  font-size: 16px;
+  line-height: 1.6;
+  color: #333;
+  margin: 0 0 12px 0;
+}
+
+.frame-footer {
+  font-size: 13px;
+  color: #888;
+  font-weight: 600;
 }
 
 .philosophy-section {

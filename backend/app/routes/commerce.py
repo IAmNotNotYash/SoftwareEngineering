@@ -18,8 +18,10 @@ The helper `_get_identity()` extracts the JWT sub dict that was stored
 during login (see auth.py: identity={'id': ..., 'role': ..., 'email': ...}).
 """
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
+import os
+import uuid
 from app import db
 from app.models.user import ArtistProfile, BuyerProfile
 from app.models.commerce import (
@@ -80,6 +82,8 @@ def list_products():
     category = request.args.get('category')
     search = request.args.get('search')
     artist_id = request.args.get('artist_id')
+    user_id = request.args.get('user_id')
+    catalogue_id = request.args.get('catalogue_id')
 
     if category:
         query = query.filter(Product.category.ilike(f'%{category}%'))
@@ -93,6 +97,15 @@ def list_products():
     if artist_id:
         # artist_id here is the ArtistProfile.id (not user id)
         query = query.filter_by(artist_id=artist_id)
+    if user_id:
+        from app.models.user import ArtistProfile
+        artist = ArtistProfile.query.filter_by(user_id=user_id).first()
+        if artist:
+            query = query.filter_by(artist_id=artist.id)
+        else:
+            return jsonify([]), 200
+    if catalogue_id:
+        query = query.filter_by(catalogue_id=catalogue_id)
 
     products = query.order_by(Product.created_at.desc()).all()
     return jsonify([p.to_dict() for p in products]), 200
@@ -172,6 +185,7 @@ def create_product():
         price=price,
         category=data.get('category'),
         in_stock=data.get('in_stock', True),
+        catalogue_id=data.get('catalogue_id')
     )
     db.session.add(product)
     db.session.flush()  # get product.id before adding images
@@ -211,7 +225,7 @@ def update_product(product_id):
         return jsonify({'error': 'Product not found or not owned by you'}), 404
 
     data = request.get_json()
-    updatable = ['title', 'description', 'materials', 'dimensions', 'price', 'category', 'in_stock']
+    updatable = ['title', 'description', 'materials', 'dimensions', 'price', 'category', 'in_stock', 'catalogue_id']
     for field in updatable:
         if field in data:
             setattr(product, field, data[field])
@@ -286,6 +300,72 @@ def add_product_image(product_id):
     )
     db.session.add(image)
     db.session.commit()
+    return jsonify(image.to_dict()), 201
+
+
+# ---------------------------------------------------------------------------
+# POST /api/commerce/products/<product_id>/upload-image
+# Artist only — upload an actual image file for a product
+# ---------------------------------------------------------------------------
+@commerce_bp.route('/products/<string:product_id>/upload-image', methods=['POST', 'OPTIONS'])
+def upload_product_image_file(product_id):
+    if request.method == 'OPTIONS':
+        return '', 204
+        
+    from flask_jwt_extended import verify_jwt_in_request
+    verify_jwt_in_request()
+    
+    identity = _get_identity()
+    err = _require_role(identity, 'artist')
+    if err:
+        return err
+
+    artist = _artist_profile(identity['id'])
+    if not artist:
+        return jsonify({'error': 'Artist profile not found'}), 404
+
+    product = Product.query.filter_by(id=product_id, artist_id=artist.id, is_deleted=False).first()
+    if not product:
+        return jsonify({'error': 'Product not found or not owned by you'}), 404
+
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+        
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+
+    if file:
+        ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'jpg'
+        filename = f"product_{product_id}_{uuid.uuid4().hex[:8]}.{ext}"
+        
+        storage_path = os.path.join(current_app.root_path, 'static', 'product_image')
+        if not os.path.exists(storage_path):
+            os.makedirs(storage_path, exist_ok=True)
+            
+        file_path = os.path.join(storage_path, filename)
+        public_url = f"/static/product_image/{filename}"
+        
+        try:
+            file.save(file_path)
+            
+            # Set this new image as primary and demote others
+            is_primary = True
+            ProductImage.query.filter_by(product_id=product_id, is_primary=True).update({'is_primary': False})
+            
+            image = ProductImage(
+                product_id=product_id,
+                image_url=public_url,
+                is_primary=is_primary,
+                sort_order=0,
+            )
+            db.session.add(image)
+            db.session.commit()
+            
+            return jsonify({'url': f"{request.host_url.rstrip('/')}{public_url}"}), 200
+        except Exception as e:
+            current_app.logger.error(f"Failed to save product image: {str(e)}")
+            return jsonify({'error': f"FileSystem error: {str(e)}"}), 500
     return jsonify(image.to_dict()), 201
 
 
