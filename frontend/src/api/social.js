@@ -63,3 +63,7 @@ export function createReview(payload) {
 export function getReviews(target_type, target_id) {
   return request(`/reviews/${target_type}/${target_id}`)
 }
+
+export function getReviewSummary(target_type, target_id) {
+  return request(`/reviews/${target_type}/${target_id}/summary`)
+}

@@ -1,80 +1,277 @@
-from flask import Blueprint, request, jsonify
-from flask_jwt_extended import jwt_required, get_jwt_identity
-from datetime import datetime, timezone, timedelta
-from app import db
-from app.models.analytics import ArtistRevenueTrend, PlatformRevenueTrend, AnalyticsSnapshot
-from app.models.user import ArtistProfile
-
-analytics_bp = Blueprint('analytics', __name__)
-
 import json
+from datetime import datetime, timedelta, timezone
+
+from flask import Blueprint, current_app, jsonify, request
+from flask_jwt_extended import get_jwt_identity, jwt_required
+
+from app import db
+from app.models.analytics import AnalyticsSnapshot, ArtistRevenueTrend, PlatformRevenueTrend
+from app.models.catalogue import Catalogue
+from app.models.commerce import Order, Product
+from app.models.social import Review
+from app.models.user import ArtistProfile, BuyerProfile
+from app.utils.ai_summary import generate_artist_summaries, generate_platform_summary
+
+analytics_bp = Blueprint("analytics", __name__)
+
 
 def _get_identity():
-    id_str = get_jwt_identity()
+    raw = get_jwt_identity()
     try:
-        return json.loads(id_str) if isinstance(id_str, str) else id_str
+        return json.loads(raw) if isinstance(raw, str) else raw
     except (json.JSONDecodeError, TypeError):
-        return id_str
+        return raw
 
-@analytics_bp.route('/artist/trend', methods=['GET'])
+
+def _utc_now():
+    return datetime.now(timezone.utc)
+
+
+def _is_stale(snapshot):
+    ttl_hours = int(current_app.config.get("AI_SNAPSHOT_TTL_HOURS", 12))
+    if not snapshot:
+        return True
+    generated_at = snapshot.generated_at or _utc_now()
+    return generated_at < (_utc_now() - timedelta(hours=ttl_hours))
+
+
+def _artist_metrics(artist_id):
+    trends = (
+        ArtistRevenueTrend.query.filter_by(artist_id=artist_id)
+        .order_by(ArtistRevenueTrend.month.asc())
+        .all()
+    )
+    recent = trends[-6:]
+    total_revenue = sum(float(t.revenue or 0) for t in trends)
+    total_orders = sum(int(t.orders or 0) for t in trends)
+    catalogue_views = sum(int(t.catalogue_views or 0) for t in trends)
+    engagements = [float(t.story_engagement_rate or 0) for t in trends if t.story_engagement_rate is not None]
+    avg_engagement_pct = (sum(engagements) / len(engagements) * 100) if engagements else 0.0
+
+    product_ids = [p.id for p in Product.query.filter_by(artist_id=artist_id, is_deleted=False).all()]
+    catalogue_ids = [c.id for c in Catalogue.query.filter_by(artist_id=artist_id).all()]
+
+    review_query = Review.query.filter_by(is_deleted=False)
+    review_filters = []
+    if product_ids:
+        review_filters.append(db.and_(Review.target_type == "product", Review.target_id.in_(product_ids)))
+    if catalogue_ids:
+        review_filters.append(db.and_(Review.target_type == "catalogue", Review.target_id.in_(catalogue_ids)))
+
+    if review_filters:
+        review_query = review_query.filter(db.or_(*review_filters))
+    else:
+        review_query = review_query.filter(db.false())
+    reviews = review_query.order_by(Review.created_at.desc()).limit(40).all()
+    review_count = len(reviews)
+    ratings = [r.rating for r in reviews if r.rating is not None]
+    avg_rating = (sum(ratings) / len(ratings)) if ratings else None
+    review_texts = [r.body for r in reviews if r.body]
+
+    recent_months = [
+        {
+            "month": t.month,
+            "revenue": float(t.revenue or 0),
+            "orders": int(t.orders or 0),
+            "catalogue_views": int(t.catalogue_views or 0),
+        }
+        for t in recent
+    ]
+
+    return {
+        "artist_id": artist_id,
+        "total_revenue": round(total_revenue, 2),
+        "total_orders": total_orders,
+        "catalogue_views": catalogue_views,
+        "avg_story_engagement_pct": round(avg_engagement_pct, 2),
+        "review_count": review_count,
+        "avg_rating": round(avg_rating, 2) if avg_rating is not None else None,
+        "recent_months": recent_months,
+    }, review_texts
+
+
+def _platform_metrics():
+    trends = PlatformRevenueTrend.query.order_by(PlatformRevenueTrend.month.asc()).all()
+    recent = trends[-6:]
+    total_revenue = float(db.session.query(db.func.sum(Order.total)).scalar() or 0)
+    total_orders = Order.query.count()
+    registered_artists = ArtistProfile.query.count()
+    registered_buyers = BuyerProfile.query.count()
+    pending_verifications = ArtistProfile.query.filter_by(verification_status="pending").count()
+
+    recent_months = [
+        {
+            "month": t.month,
+            "revenue": float(t.revenue or 0),
+            "new_signups": int(t.new_signups or 0),
+            "total_orders": int(t.total_orders or 0),
+            "avg_order_value": float(t.avg_order_value or 0),
+        }
+        for t in recent
+    ]
+
+    return {
+        "total_revenue": round(total_revenue, 2),
+        "total_orders": total_orders,
+        "registered_artists": registered_artists,
+        "registered_buyers": registered_buyers,
+        "pending_verifications": pending_verifications,
+        "recent_months": recent_months,
+    }
+
+
+def _create_artist_snapshot(artist_id):
+    metrics, review_texts = _artist_metrics(artist_id)
+    ai_summary, sentiment_summary = generate_artist_summaries(
+        metrics,
+        review_texts,
+        api_key=current_app.config.get("GEMINI_API_KEY"),
+        model=current_app.config.get("GEMINI_MODEL", "gemini-2.0-flash"),
+    )
+    period = metrics["recent_months"][-1]["month"] if metrics["recent_months"] else "all-time"
+
+    snapshot = AnalyticsSnapshot(
+        entity_type="artist",
+        entity_id=artist_id,
+        period=period,
+        metrics=metrics,
+        ai_summary=ai_summary,
+        sentiment_summary=sentiment_summary,
+        generated_at=_utc_now(),
+    )
+    db.session.add(snapshot)
+    db.session.commit()
+    return snapshot
+
+
+def _create_platform_snapshot():
+    metrics = _platform_metrics()
+    ai_summary = generate_platform_summary(
+        metrics,
+        api_key=current_app.config.get("GEMINI_API_KEY"),
+        model=current_app.config.get("GEMINI_MODEL", "gemini-2.0-flash"),
+    )
+    period = metrics["recent_months"][-1]["month"] if metrics["recent_months"] else "all-time"
+
+    snapshot = AnalyticsSnapshot(
+        entity_type="platform",
+        entity_id=None,
+        period=period,
+        metrics=metrics,
+        ai_summary=ai_summary,
+        sentiment_summary=None,
+        generated_at=_utc_now(),
+    )
+    db.session.add(snapshot)
+    db.session.commit()
+    return snapshot
+
+
+@analytics_bp.route("/artist/trend", methods=["GET"])
 @jwt_required()
 def get_artist_trend():
     identity = _get_identity()
-    if identity['role'] != 'artist':
-        return jsonify({'error': 'Forbidden'}), 403
-    
-    artist = ArtistProfile.query.filter_by(user_id=identity['id']).first()
-    trends = ArtistRevenueTrend.query.filter_by(artist_id=artist.id).order_by(ArtistRevenueTrend.month.asc()).all()
-    
-    # If no real trend data, return some defaults for UI visualization
+    if identity["role"] != "artist":
+        return jsonify({"error": "Forbidden"}), 403
+
+    artist = ArtistProfile.query.filter_by(user_id=identity["id"]).first()
+    if not artist:
+        return jsonify({"error": "Artist profile not found"}), 404
+
+    trends = (
+        ArtistRevenueTrend.query.filter_by(artist_id=artist.id)
+        .order_by(ArtistRevenueTrend.month.asc())
+        .all()
+    )
     if not trends:
-        months = ["2026-01", "2026-02", "2026-03", "2026-04"]
-        return jsonify([
-            {'month': 'Jan', 'revenue': 45000, 'views': 120},
-            {'month': 'Feb', 'revenue': 52000, 'views': 150},
-            {'month': 'Mar', 'revenue': 48000, 'views': 140},
-            {'month': 'Apr', 'revenue': 61000, 'views': 210},
-        ]), 200
-        
+        return jsonify(
+            [
+                {"month": "Jan", "revenue": 45000, "views": 120},
+                {"month": "Feb", "revenue": 52000, "views": 150},
+                {"month": "Mar", "revenue": 48000, "views": 140},
+                {"month": "Apr", "revenue": 61000, "views": 210},
+            ]
+        ), 200
+
     return jsonify([t.to_dict() for t in trends]), 200
 
-@analytics_bp.route('/platform/trend', methods=['GET'])
+
+@analytics_bp.route("/platform/trend", methods=["GET"])
 @jwt_required()
 def get_platform_trend():
     identity = _get_identity()
-    if identity['role'] != 'admin':
-        return jsonify({'error': 'Forbidden'}), 403
-    
+    if identity["role"] != "admin":
+        return jsonify({"error": "Forbidden"}), 403
+
     trends = PlatformRevenueTrend.query.order_by(PlatformRevenueTrend.month.asc()).all()
-    
     if not trends:
-        return jsonify([
-            {'month': 'Jan', 'revenue': 1200000},
-            {'month': 'Feb', 'revenue': 1500000},
-            {'month': 'Mar', 'revenue': 1800000},
-            {'month': 'Apr', 'revenue': 2200000},
-        ]), 200
-        
+        return jsonify(
+            [
+                {"month": "Jan", "revenue": 1200000},
+                {"month": "Feb", "revenue": 1500000},
+                {"month": "Mar", "revenue": 1800000},
+                {"month": "Apr", "revenue": 2200000},
+            ]
+        ), 200
     return jsonify([t.to_dict() for t in trends]), 200
 
-@analytics_bp.route('/snapshots', methods=['GET'])
+
+@analytics_bp.route("/snapshots", methods=["GET"])
 @jwt_required()
 def get_snapshot():
     identity = _get_identity()
-    entity_type = request.args.get('type', 'artist')
-    
-    if entity_type == 'artist':
-        artist = ArtistProfile.query.filter_by(user_id=identity['id']).first()
-        snapshot = AnalyticsSnapshot.query.filter_by(entity_type='artist', entity_id=artist.id).order_by(AnalyticsSnapshot.generated_at.desc()).first()
-    else:
-        if identity['role'] != 'admin': return jsonify({'error': 'Forbidden'}), 403
-        snapshot = AnalyticsSnapshot.query.filter_by(entity_type='platform').order_by(AnalyticsSnapshot.generated_at.desc()).first()
-        
-    if not snapshot:
-        # Mock AI summary if none exists
-        return jsonify({
-            'ai_summary': "Your brand identity is resonating strongly with 'Home Decor' enthusiasts. We've seen a 22% increase in catalogue engagement this month, primarily driven by your 'Earth Tones' collection. Consider launching a follow-up drop with exclusive early access to your top 10% followers.",
-            'sentiment_summary': "Buyers frequently praise the 'organic texture' and 'durability' of your ceramics. 94% of reviews contain positive sentiment regarding packaging quality."
-        }), 200
-        
-    return jsonify(snapshot.to_dict()), 200
+    entity_type = request.args.get("type", "artist")
+    force_refresh = request.args.get("refresh", "false").lower() in {"1", "true", "yes"}
+
+    if entity_type == "artist":
+        if identity.get("role") != "artist":
+            return jsonify({"error": "Forbidden"}), 403
+        artist = ArtistProfile.query.filter_by(user_id=identity["id"]).first()
+        if not artist:
+            return jsonify({"error": "Artist profile not found"}), 404
+        snapshot = (
+            AnalyticsSnapshot.query.filter_by(entity_type="artist", entity_id=artist.id)
+            .order_by(AnalyticsSnapshot.generated_at.desc())
+            .first()
+        )
+        if force_refresh or _is_stale(snapshot):
+            snapshot = _create_artist_snapshot(artist.id)
+        return jsonify(snapshot.to_dict()), 200
+
+    if entity_type == "platform":
+        if identity.get("role") != "admin":
+            return jsonify({"error": "Forbidden"}), 403
+        snapshot = (
+            AnalyticsSnapshot.query.filter_by(entity_type="platform")
+            .order_by(AnalyticsSnapshot.generated_at.desc())
+            .first()
+        )
+        if force_refresh or _is_stale(snapshot):
+            snapshot = _create_platform_snapshot()
+        return jsonify(snapshot.to_dict()), 200
+
+    return jsonify({"error": "Invalid type. Use 'artist' or 'platform'"}), 400
+
+
+@analytics_bp.route("/snapshots/refresh", methods=["POST"])
+@jwt_required()
+def refresh_snapshot():
+    identity = _get_identity()
+    entity_type = request.args.get("type", "artist")
+
+    if entity_type == "artist":
+        if identity.get("role") != "artist":
+            return jsonify({"error": "Forbidden"}), 403
+        artist = ArtistProfile.query.filter_by(user_id=identity["id"]).first()
+        if not artist:
+            return jsonify({"error": "Artist profile not found"}), 404
+        snapshot = _create_artist_snapshot(artist.id)
+        return jsonify(snapshot.to_dict()), 201
+
+    if entity_type == "platform":
+        if identity.get("role") != "admin":
+            return jsonify({"error": "Forbidden"}), 403
+        snapshot = _create_platform_snapshot()
+        return jsonify(snapshot.to_dict()), 201
+
+    return jsonify({"error": "Invalid type. Use 'artist' or 'platform'"}), 400
