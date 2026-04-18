@@ -6,22 +6,46 @@
       <p>Your account information on the Kala platform.</p>
     </div>
 
-    <div class="profile-content">
+    <div v-if="loading" class="loading-state">
+      <div class="spinner"></div>
+      <p>Loading your profile...</p>
+    </div>
+
+    <div class="profile-content" v-else>
       <!-- Personal Info Section -->
       <section class="profile-section">
-        <h2>Personal Information</h2>
+        <div class="section-header">
+          <h2>Personal Information</h2>
+          <button v-if="!isEditing" @click="startEditing" class="edit-btn">Edit Profile</button>
+          <div v-else class="edit-actions">
+            <button @click="cancelEditing" class="cancel-btn">Cancel</button>
+            <button @click="saveProfile" class="save-btn" :disabled="saving">
+              {{ saving ? 'Saving...' : 'Save Changes' }}
+            </button>
+          </div>
+        </div>
         <div class="info-grid">
           <div class="info-group">
             <label>Full Name</label>
-            <p>{{ user?.name || '—' }}</p>
+            <input v-if="isEditing" v-model="editForm.full_name" type="text" class="edit-input" />
+            <p v-else>{{ user?.full_name || user?.name || '—' }}</p>
           </div>
           <div class="info-group">
             <label>Email Address</label>
             <p>{{ user?.email || '—' }}</p>
           </div>
           <div class="info-group">
+            <label>Phone Number</label>
+            <input v-if="isEditing" v-model="editForm.phone" type="tel" class="edit-input" placeholder="Enter phone number" />
+            <p v-else>{{ user?.phone || '—' }}</p>
+          </div>
+          <div class="info-group">
             <label>Account Type</label>
             <p style="text-transform: capitalize;">{{ user?.role || '—' }}</p>
+          </div>
+          <div class="info-group">
+            <label>Member Since</label>
+            <p>{{ joinDateStr }}</p>
           </div>
         </div>
       </section>
@@ -37,6 +61,28 @@
           <div class="kpi-card">
             <div class="kpi-label">Total Orders</div>
             <div class="kpi-value">{{ orderCount }}</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Followed Artists</div>
+            <div class="kpi-value">{{ followedArtists.length }}</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Following Section -->
+      <section class="profile-section">
+        <h2>Artists I Follow</h2>
+        <div v-if="followedArtists.length === 0" class="empty-state">
+          <p>You haven't followed any artists yet.</p>
+        </div>
+        <div v-else class="artist-list">
+          <div v-for="artist in followedArtists" :key="artist.id" class="artist-chip">
+            <img :src="artist.profile_image_url || 'https://via.placeholder.com/40'" alt="Avatar" />
+            <div class="artist-info">
+              <span class="artist-name">{{ artist.full_name || artist.name }}</span>
+              <span class="artist-tagline">{{ artist.location || 'Artisan' }}</span>
+            </div>
+            <button @click="unfollow(artist.id)" class="unfollow-btn">Unfollow</button>
           </div>
         </div>
       </section>
@@ -54,19 +100,113 @@ import { getOrders } from '../../api/commerce.js'
 const authStore = useAuthStore()
 const cartStore = useCartStore()
 
-const user = computed(() => authStore.user)
-const orderCount = ref('—')
+const user = ref(null)
+const orderCount = ref(0)
+const followedArtists = ref([])
+const loading = ref(true)
+const saving = ref(false)
+const isEditing = ref(false)
+const editForm = ref({
+  full_name: '',
+  email: '',
+  phone: ''
+})
 
-
-onMounted(async () => {
-  await cartStore.loadCart()
+const fetchProfile = async () => {
   try {
-    const data = await getOrders()
-    const orders = Array.isArray(data) ? data : (data.orders || [])
+    const token = sessionStorage.getItem('token')
+    
+    // 1. Load Profile
+    const res = await fetch('http://127.0.0.1:5000/api/auth/profile', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+    if (res.ok) {
+      user.value = await res.json()
+    }
+    
+    // 2. Load Following List
+    const followRes = await fetch('http://127.0.0.1:5000/api/social/following', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+    if (followRes.ok) {
+      followedArtists.value = await followRes.json()
+    }
+    
+    // Load Cart count
+    await cartStore.loadCart()
+
+    // Load Order count
+    const ordersData = await getOrders()
+    const orders = Array.isArray(ordersData) ? ordersData : (ordersData.orders || [])
     orderCount.value = orders.length
-  } catch {
-    orderCount.value = 0
+  } catch (e) {
+    console.error(e)
+    user.value = authStore.user // fallback
+  } finally {
+    loading.value = false
   }
+}
+
+onMounted(fetchProfile)
+
+const startEditing = () => {
+  editForm.value = {
+    full_name: user.value?.full_name || '',
+    email: user.value?.email || '',
+    phone: user.value?.phone || ''
+  }
+  isEditing.value = true
+}
+
+const cancelEditing = () => {
+  isEditing.value = false
+}
+
+const unfollow = async (artistId) => {
+  try {
+    const res = await fetch(`http://127.0.0.1:5000/api/social/follows/${artistId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${sessionStorage.getItem('token')}` }
+    })
+    if (res.ok) {
+      followedArtists.value = followedArtists.value.filter(a => a.id !== artistId)
+    }
+  } catch (e) {
+    console.error(e)
+  }
+}
+
+const saveProfile = async () => {
+  saving.value = true
+  try {
+    const res = await fetch('http://127.0.0.1:5000/api/auth/profile', {
+      method: 'PATCH',
+      headers: { 
+        'Authorization': `Bearer ${sessionStorage.getItem('token')}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(editForm.value)
+    })
+    
+    if (res.ok) {
+      await fetchProfile()
+      isEditing.value = false
+      alert('Profile updated successfully!')
+    } else {
+      const err = await res.json()
+      alert(err.error || 'Failed to update profile')
+    }
+  } catch (e) {
+    console.error(e)
+    alert('An error occurred while saving.')
+  } finally {
+    saving.value = false
+  }
+}
+
+const joinDateStr = computed(() => {
+  if (!user.value?.created_at) return 'Recently'
+  return new Date(user.value.created_at).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })
 })
 </script>
 
@@ -151,17 +291,120 @@ onMounted(async () => {
 }
 
 .edit-btn {
-  background: none;
+  background: #C4622D;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 6px;
   border: none;
-  color: #C4622D;
   font-weight: 600;
   font-family: 'DM Sans', sans-serif;
   cursor: pointer;
-  font-size: 14px;
+  transition: background 0.2s;
 }
 
 .edit-btn:hover {
-  text-decoration: underline;
+  background: #a35225;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.save-btn {
+  background: #2D2A26;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cancel-btn {
+  background: #eee;
+  color: #666;
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.edit-input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  outline: none;
+}
+
+.edit-input:focus {
+  border-color: #C4622D;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 20px;
+  color: #888;
+  font-style: italic;
+}
+
+.artist-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.artist-chip {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px;
+  background: #fdfdfd;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+}
+
+.artist-chip img {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.artist-info {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.artist-name {
+  font-weight: 600;
+  color: #2D2A26;
+}
+
+.artist-tagline {
+  font-size: 13px;
+  color: #888;
+}
+
+.unfollow-btn {
+  background: none;
+  border: 1px solid #ddd;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  color: #666;
+}
+
+.unfollow-btn:hover {
+  background: #fff5f0;
+  color: #C4622D;
+  border-color: #C4622D;
 }
 
 .info-grid {

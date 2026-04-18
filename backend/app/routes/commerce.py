@@ -112,9 +112,6 @@ def list_products():
 
 
 # ---------------------------------------------------------------------------
-# GET /api/commerce/artists
-# Public — returns all approved artists for discovery
-# ---------------------------------------------------------------------------
 @commerce_bp.route('/artists', methods=['GET'])
 def list_artists():
     artists = ArtistProfile.query.filter_by(verification_status='approved').all()
@@ -125,6 +122,36 @@ def list_artists():
         'avatar': a.profile_image_url,
         'followers': 0 # To be replaced with real count (computed from Follow table)
     } for a in artists]), 200
+
+
+# ---------------------------------------------------------------------------
+# GET /api/commerce/artists/<id>
+# Public — full artist profile detail
+# ---------------------------------------------------------------------------
+@commerce_bp.route('/artists/<string:artist_id>', methods=['GET'])
+def get_artist(artist_id):
+    artist = ArtistProfile.query.filter_by(id=artist_id, verification_status='approved').first()
+    if not artist:
+        return jsonify({'error': 'Artist not found'}), 404
+
+    # Get live catalogues
+    from app.models.catalogue import Catalogue
+    catalogues = Catalogue.query.filter_by(artist_id=artist.id, status='live').all()
+    
+    # Get products
+    products = Product.query.filter_by(artist_id=artist.id, is_deleted=False).all()
+
+    return jsonify({
+        'id': artist.id,
+        'name': artist.brand_name,
+        'location': artist.location,
+        'bio': artist.bio,
+        'avatar': artist.profile_image_url,
+        'cover_image_url': artist.cover_image_url,
+        'followers': 0, # Placeholder
+        'catalogues': [c.to_dict() for c in catalogues],
+        'products': [p.to_dict() for p in products]
+    }), 200
 
 
 # ---------------------------------------------------------------------------

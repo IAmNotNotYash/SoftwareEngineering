@@ -1,0 +1,70 @@
+# PostgreSQL Database Setup Guide
+
+This guide explains how to set up the PostgreSQL database and apply migrations for the Kala platform.
+
+## 1. Install PostgreSQL (Windows)
+1. Download the installer from: [postgresql.org/download/windows](https://www.postgresql.org/download/windows/)
+2. Run the installer (Interactive Installer by EDB).
+3. Follow the wizard. **Important:** Remember the password you set for the `postgres` superuser!
+4. Keep the default port `5432`.
+
+## 2. Create the Database and User
+You can do this via **pgAdmin 4** (installed with PostgreSQL) or the **SQL Shell (psql)**.
+
+### Using SQL Shell (psql):
+1. Open "SQL Shell (psql)" from your Start Menu.
+2. Press Enter for Server, Database, Port, and Username defaults.
+3. Enter the password you set during installation.
+4. Run these commands one by one:
+   ```sql
+   CREATE DATABASE kala_db;
+   CREATE USER kala_user WITH PASSWORD 'kala_pass';
+   GRANT ALL PRIVILEGES ON DATABASE kala_db TO kala_user;
+   ALTER DATABASE kala_db OWNER TO kala_user;
+   \q
+   ```
+
+## 3. Configure the Backend
+1. Go to the `backend` folder: `cd backend`
+2. Create a `.env` file (if you haven't already): `cp .env.example .env`
+3. Open `.env` and set the `DATABASE_URL`:
+   ```
+   DATABASE_URL=postgresql://kala_user:kala_pass@localhost:5432/kala_db
+   ```
+   *Note: If you used a different password in Step 2, update `kala_pass` accordingly.*
+
+## 4. Install Dependencies
+Make sure your virtual environment is active, then run:
+```bash
+pip install -r requirements.txt
+```
+
+## 5. Apply Database Migrations
+Since the project already has a `migrations/` folder, you do **NOT** need to run `flask db init`. You only need to "upgrade" your local database to match the schema:
+```bash
+flask db upgrade
+```
+This will create all the tables (Users, Products, etc.) in your PostgreSQL database.
+
+## 6. Seed Demo Data (Optional)
+To populate your database with some initial artists and products:
+```bash
+python seed_demo_data.py
+```
+
+---
+
+## Common Issues on Windows:
+
+### 1. "psql is not recognized as an internal or external command"
+You need to add the PostgreSQL `bin` folder to your System PATH:
+- Search for "Environment Variables" in Start.
+- Edit "Path" and add: `C:\Program Files\PostgreSQL\<version>\bin`
+
+### 2. Connection Refused
+- Ensure the "postgresql" service is running.
+- Open "Services" app and check if `postgresql-x64-<version>` is "Running".
+
+### 3. Authentication Failed
+- Double check your username and password in the `DATABASE_URL`.
+- The format is: `postgresql://USER:PASSWORD@localhost:5432/DB_NAME`

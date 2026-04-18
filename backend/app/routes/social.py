@@ -67,6 +67,21 @@ def check_follow(artist_id):
     follow = Follow.query.filter_by(buyer_id=buyer.id, artist_id=artist_id).first()
     return jsonify({'is_following': follow is not None}), 200
 
+@social_bp.route('/following', methods=['GET'])
+@jwt_required()
+def list_following():
+    identity = _get_identity()
+    if identity['role'] != 'buyer':
+        return jsonify({'error': 'Only buyers have a following list'}), 403
+    
+    buyer = BuyerProfile.query.filter_by(user_id=identity['id']).first()
+    if not buyer:
+        return jsonify({'error': 'Buyer profile not found'}), 404
+        
+    follows = Follow.query.filter_by(buyer_id=buyer.id).all()
+    artists = [f.artist.to_dict() for f in follows if f.artist]
+    return jsonify(artists), 200
+
 # ── POSTS (STORIES & INSIGHTS) ────────────────────────────────────────────────
 
 @social_bp.route('/posts', methods=['GET'])

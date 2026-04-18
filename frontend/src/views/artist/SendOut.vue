@@ -22,8 +22,21 @@
         </div>
       </section>
 
-      <!-- Broadcast Composer Layout -->
-      <div class="composer-layout">
+      <!-- CRM Navigation Tabs -->
+      <div class="crm-tabs">
+        <button 
+          v-for="tab in ['composer', 'history', 'audience']" 
+          :key="tab"
+          class="tab-btn" 
+          :class="{ active: activeTab === tab }"
+          @click="activeTab = tab"
+        >
+          {{ tab.charAt(0).toUpperCase() + tab.slice(1) }}
+        </button>
+      </div>
+
+      <!-- Tab Content: Composer -->
+      <div v-if="activeTab === 'composer'" class="composer-layout slide-in">
         <div class="composer-form panel card">
           <h2>New Broadcast</h2>
           <p class="field-hint">Send a direct message or campaign update to your subscribers.</p>
@@ -112,21 +125,93 @@
           </div>
         </div>
       </div>
+
+      <!-- Tab Content: History -->
+      <div v-if="activeTab === 'history'" class="history-section panel card slide-in">
+        <h2>Broadcast History</h2>
+        <p class="field-hint">View the performance of your past campaigns.</p>
+        
+        <table class="premium-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Campaign</th>
+              <th>Platforms</th>
+              <th>Status</th>
+              <th>Reach</th>
+              <th>Engagement</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="h in broadcastHistory" :key="h.id">
+              <td>{{ h.date }}</td>
+              <td><strong>{{ h.title }}</strong></td>
+              <td>
+                <span v-for="icon in h.platforms" :key="icon" class="platform-icon-small">{{ icon }}</span>
+              </td>
+              <td><span class="status-badge sent">{{ h.status }}</span></td>
+              <td>{{ h.reach.toLocaleString() }}</td>
+              <td class="engagement-value">{{ h.engagement }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Tab Content: Audience -->
+      <div v-if="activeTab === 'audience'" class="audience-section panel card slide-in">
+        <div class="section-header-row">
+          <div>
+            <h2>Audience Management</h2>
+            <p class="field-hint">Your loyal community members and their engagement.</p>
+          </div>
+          <div class="search-box">
+            <input v-model="searchQuery" class="input-field small-input" placeholder="Search subscribers..." />
+          </div>
+        </div>
+
+        <table class="premium-table">
+          <thead>
+            <tr>
+              <th>Subscribers</th>
+              <th>Tier</th>
+              <th>Joined Date</th>
+              <th>Total Orders</th>
+              <th>Lifetime Value</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="s in filteredSubscribers" :key="s.id">
+              <td class="user-cell">
+                <div class="user-avatar" :style="{background: getRandomColor()}">{{ s.name.charAt(0) }}</div>
+                <span>{{ s.name }}</span>
+              </td>
+              <td><span class="tier-badge" :class="s.type.toLowerCase()">{{ s.type }}</span></td>
+              <td>{{ s.joined }}</td>
+              <td>{{ s.orders }}</td>
+              <td class="value-cell">{{ s.value }}</td>
+              <td><button class="btn secondary-btn small-btn">Profile</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </main>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import ArtistNavbar from '../../components/ArtistNavbar.vue'
 import { getCatalogues } from '../../api/catalogue.js'
 import { getAudienceSize, sendBroadcast as apiSendBroadcast } from '../../api/communication.js'
 
+const activeTab = ref('composer')
 const message = ref("🎨 Exciting news! Check out my latest collection — crafted with love and available now at special prices. Don't miss out!")
 const selectedIntent = ref('launch')
 const selectedCatalogueId = ref(null)
 const audienceSize = ref(0)
 const loading = ref(true)
+const searchQuery = ref('')
 
 const catalogues = ref([])
 
@@ -141,6 +226,31 @@ const platforms = ref([
   { id: 'email', icon: '✉️', label: 'Email List', active: true },
   { id: 'tg', icon: '✈️', label: 'Telegram', active: true },
 ])
+
+const broadcastHistory = ref([
+  { id: 1, date: '2026-03-28', title: 'Summer Art Collection', status: 'Delivered', reach: 18402, engagement: '12.4%', platforms: ['✉️', '✈️'] },
+  { id: 2, date: '2026-03-15', title: 'Flash Sale: Ceramics', status: 'Delivered', reach: 17950, engagement: '8.1%', platforms: ['✉️', '📸', '📘'] },
+  { id: 3, date: '2026-02-28', title: 'Exclusive Reveal', status: 'Delivered', reach: 16200, engagement: '15.2%', platforms: ['✉️', '✈️'] },
+])
+
+const subscribers = ref([
+  { id: 1, name: 'Aarav Sharma', type: 'Patron', joined: '2025-11-20', orders: 12, value: '₹42,500' },
+  { id: 2, name: 'Mira Desai', type: 'Fan', joined: '2026-01-05', orders: 4, value: '₹8,200' },
+  { id: 3, name: 'Rohan Gupta', type: 'Follower', joined: '2026-02-14', orders: 1, value: '₹1,200' },
+  { id: 4, name: 'Kavya Singh', type: 'Patron', joined: '2025-09-12', orders: 28, value: '₹89,400' },
+  { id: 5, name: 'Aditya Patel', type: 'Follower', joined: '2026-03-01', orders: 0, value: '₹0' },
+  { id: 6, name: 'Sana Khan', type: 'Fan', joined: '2026-03-10', orders: 2, value: '₹3,500' },
+])
+
+const filteredSubscribers = computed(() => {
+  if (!searchQuery.value) return subscribers.value
+  return subscribers.value.filter(s => s.name.toLowerCase().includes(searchQuery.value.toLowerCase()))
+})
+
+const getRandomColor = () => {
+  const colors = ['#C4622D', '#6A7E6A', '#2D3748', '#8B4513', '#556B2F']
+  return colors[Math.floor(Math.random() * colors.length)]
+}
 
 onMounted(async () => {
   try {
@@ -277,6 +387,35 @@ const sendBroadcast = async () => {
 
 .positive { color: #16A34A; }
 
+/* Tabs */
+.crm-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 32px;
+  background: #f4f0ea;
+  padding: 6px;
+  border-radius: 10px;
+  width: max-content;
+}
+
+.tab-btn {
+  padding: 10px 24px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: #888;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab-btn.active {
+  background: #ffffff;
+  color: #C4622D;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
 /* Composer Layout */
 .composer-layout {
   display: flex;
@@ -342,6 +481,11 @@ const sendBroadcast = async () => {
 .input-field:focus {
   outline: none;
   border-color: #C4622D;
+}
+
+.small-input {
+  padding: 10px 16px;
+  font-size: 14px;
 }
 
 .catalog-select {
@@ -452,6 +596,106 @@ const sendBroadcast = async () => {
 .secondary-btn { background: #fff; border: 1px solid #e8e0d8; color: #1a1a1a; }
 .secondary-btn:hover { border-color: #C4622D; color: #C4622D; }
 
+/* Tables */
+.premium-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+.premium-table th {
+  text-align: left;
+  padding: 16px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #888;
+  border-bottom: 2px solid #f4f0ea;
+}
+
+.premium-table td {
+  padding: 20px 16px;
+  border-bottom: 1px solid #f4f0ea;
+  font-size: 14px;
+  color: #333;
+}
+
+.premium-table tr:hover {
+  background: #fdfaf8;
+}
+
+.status-badge {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.status-badge.sent { background: #DCFCE7; color: #15803D; }
+
+.engagement-value {
+  font-weight: 700;
+  color: #C4622D;
+}
+
+.platform-icon-small {
+  margin-right: 4px;
+  font-size: 16px;
+}
+
+.section-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+}
+
+.user-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 600;
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.tier-badge {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.tier-badge.patron { background: #F3E8FF; color: #9333EA; }
+.tier-badge.fan { background: #FEF3C7; color: #D97706; }
+.tier-badge.follower { background: #E0E7FF; color: #4F46E5; }
+
+.value-cell {
+  font-family: var(--font-heading);
+  font-weight: 600;
+}
+
+/* Animations */
+.slide-in {
+  animation: slideUp 0.4s ease-out;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 /* Preview Device */
 .preview-device {
   width: 340px;
@@ -530,5 +774,10 @@ const sendBroadcast = async () => {
   font-weight: 600;
   color: #C4622D;
   border-top: 1px solid #e8e0d8;
+}
+
+.small-btn {
+  padding: 6px 12px;
+  font-size: 11px;
 }
 </style>

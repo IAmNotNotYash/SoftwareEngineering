@@ -14,11 +14,11 @@
     <div v-else class="artist-grid">
       <div v-for="artist in followedArtists" :key="artist.id" class="artist-card">
         <router-link :to="`/buyer/artist/${artist.id}`" class="card-link">
-          <img :src="artist.avatar" :alt="artist.name" class="artist-avatar" />
+          <img :src="artist.profile_image_url || artist.avatar || 'https://via.placeholder.com/110'" :alt="artist.brand_name || artist.name" class="artist-avatar" />
           <div class="artist-info">
-            <h3 class="artist-name">{{ artist.name }}</h3>
-            <p class="artist-category">{{ artist.category }}</p>
-            <p class="artist-followers">{{ artist.followers }} followers</p>
+            <h3 class="artist-name">{{ artist.brand_name || artist.name || artist.full_name }}</h3>
+            <p class="artist-category">{{ artist.location || 'Artisan' }}</p>
+            <p class="artist-followers">{{ artist.follower_count || 0 }} followers</p>
           </div>
         </router-link>
         <button class="following-btn" @click="unfollow(artist.id)">
@@ -36,20 +36,31 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { getFollowedArtists } from '../../api/buyer.js'
+import { getFollowing, unfollowArtist } from '../../api/social.js'
 import BuyerNavbar from '../../components/BuyerNavbar.vue'
 
 const followedArtists = ref([])
 const loading = ref(true)
 
 onMounted(async () => {
-  followedArtists.value = await getFollowedArtists()
-  loading.value = false
+  try {
+    const data = await getFollowing()
+    followedArtists.value = Array.isArray(data) ? data : []
+  } catch (e) {
+    console.error('Failed to load following list:', e)
+    followedArtists.value = []
+  } finally {
+    loading.value = false
+  }
 })
 
-const unfollow = (id) => {
-  // Mock unfollow action (optimistic UI update)
-  followedArtists.value = followedArtists.value.filter(a => a.id !== id)
+const unfollow = async (id) => {
+  try {
+    await unfollowArtist(id)
+    followedArtists.value = followedArtists.value.filter(a => a.id !== id)
+  } catch (e) {
+    alert(e.message)
+  }
 }
 </script>
 

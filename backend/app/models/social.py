@@ -12,6 +12,9 @@ class Follow(db.Model):
 
     __table_args__ = (db.UniqueConstraint('buyer_id', 'artist_id', name='_buyer_artist_follow_uc'),)
 
+    buyer = db.relationship('BuyerProfile', backref=db.backref('artist_follows', lazy='dynamic'))
+    artist = db.relationship('ArtistProfile', backref=db.backref('buyer_follows', lazy='dynamic'))
+
     def to_dict(self):
         return {
             'id': self.id,

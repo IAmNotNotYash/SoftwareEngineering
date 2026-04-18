@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import create_access_token
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 import json
 from app import db
 from app.models.user import User, BuyerProfile, ArtistProfile
@@ -109,3 +109,74 @@ def login():
             'brandName': brand_name
         }
     }), 200
+
+@auth_bp.route('/profile', methods=['GET'])
+@jwt_required()
+def get_current_profile():
+    raw_identity = get_jwt_identity()
+    try:
+        identity = json.loads(raw_identity) if isinstance(raw_identity, str) else raw_identity
+    except (json.JSONDecodeError, TypeError):
+        identity = raw_identity
+
+    user = db.session.get(User, identity['id'])
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+
+    profile_data = {}
+    if user.role == 'buyer' and user.buyer_profile:
+        profile_data = user.buyer_profile.to_dict()
+    elif user.role == 'artist' and user.artist_profile:
+        profile_data = user.artist_profile.to_dict()
+    
+    # Merge profile data with user basic info for a flat response
+    response_data = profile_data.copy()
+    response_data.update({
+        'user_id': user.id,
+        'email': user.email,
+        'role': user.role
+    })
+    
+    return jsonify(response_data), 200
+
+@auth_bp.route('/profile', methods=['PATCH'])
+@jwt_required()
+def update_profile():
+    raw_identity = get_jwt_identity()
+    try:
+        identity = json.loads(raw_identity) if isinstance(raw_identity, str) else raw_identity
+    except (json.JSONDecodeError, TypeError):
+        identity = raw_identity
+
+    user = db.session.get(User, identity['id'])
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+
+    data = request.json
+    if not data:
+        return jsonify({'error': 'No data provided'}), 400
+    
+    # Update Buyer Profile
+    if user.role == 'buyer' and user.buyer_profile:
+        if 'full_name' in data:
+            user.buyer_profile.full_name = data['full_name']
+        if 'phone' in data:
+            user.buyer_profile.phone = data['phone']
+            
+    # Update Artist Profile
+    elif user.role == 'artist' and user.artist_profile:
+        if 'full_name' in data:
+            user.artist_profile.full_name = data['full_name']
+        if 'brand_name' in data:
+            user.artist_profile.brand_name = data['brand_name']
+        if 'location' in data:
+            user.artist_profile.location = data['location']
+        if 'bio' in data:
+            user.artist_profile.bio = data['bio']
+
+    try:
+        db.session.commit()
+        return jsonify({'message': 'Profile updated successfully'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
