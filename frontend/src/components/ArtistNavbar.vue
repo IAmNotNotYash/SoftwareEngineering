@@ -5,6 +5,7 @@
         <img src="../assets/logo1.png" alt="Kala Logo" class="logo-img" v-if="hasLogo" @error="hasLogo = false" />
         <span class="brand-text">Kala</span> <span class="badge">ARTIST</span>
       </RouterLink>
+      <span class="user-name" v-if="authStore.user">{{ authStore.user.name }}</span>
     </div>
     <div class="navbar-links">
       <RouterLink to="/artist/dashboard" active-class="router-link-active">Dashboard</RouterLink>
@@ -50,6 +51,13 @@ function handleLogout() {
   top: 0;
   z-index: 100;
   transition: all 0.3s ease;
+}
+
+.navbar-logo {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-right: 40px; /* Ensure a minimum distance from navigation links */
 }
 
 .navbar-logo a {
@@ -137,5 +145,15 @@ function handleLogout() {
 
 .navbar-links .logout:hover {
   color: #1a1a1a;
+}
+
+.user-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1a1a;
+  background: #fdf2ed;
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(196, 98, 45, 0.1);
 }
 </style>

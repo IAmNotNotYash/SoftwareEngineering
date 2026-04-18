@@ -5,8 +5,8 @@
     <main class="page-container">
       <header class="dash-header">
         <div>
-          <h1 class="page-title">Artist Dashboard</h1>
-          <p class="subtitle">Here is how your brand and catalogues are performing.</p>
+          <h1 class="page-title">Welcome back, {{ authStore.user?.name }}</h1>
+          <p class="subtitle">Here is how {{ authStore.user?.brandName || 'your brand' }} and catalogues are performing.</p>
         </div>
         <div class="quick-actions">
           <RouterLink to="/artist/newcatalogue" class="btn primary-btn">+ New Catalogue</RouterLink>
@@ -75,9 +75,12 @@
 import { ref, onMounted, nextTick } from 'vue'
 import { Chart, registerables } from 'chart.js'
 import ArtistNavbar from '../../components/ArtistNavbar.vue'
+import { useAuthStore } from '../../stores/auth.js'
 import { getArtistTrend, getAnalyticsSnapshot } from '../../api/analytics.js'
 
 Chart.register(...registerables)
+
+const authStore = useAuthStore()
 
 const stats = ref({
   totalRevenue: '₹0',

@@ -43,7 +43,9 @@ class Catalogue(db.Model):
     views = db.relationship('CatalogueView', backref='catalogue', lazy='dynamic', cascade='all, delete-orphan')
     likes = db.relationship('CatalogueLike', backref='catalogue', lazy='dynamic', cascade='all, delete-orphan')
 
-    def to_dict(self, include_products=False):
+    def to_dict(self, include_products=False, include_stories=False, for_artist=False):
+        from app.models.commerce import Product
+        
         data = {
             'id': self.id,
             'artist_id': self.artist_id,
@@ -61,16 +63,21 @@ class Catalogue(db.Model):
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat(),
             'stats': self.stats.to_dict() if self.stats else None,
+            'product_count': self.direct_products.filter_by(is_deleted=False).count()
         }
         if include_products:
-            from app.models.commerce import Product
-            cp_list = self.catalogue_products.all()
-            products = []
-            for cp in cp_list:
-                product = db.session.get(Product, cp.product_id)
-                if product and not product.is_deleted:
-                    products.append(product.to_dict())
+            # Now relying on the strict 1-to-many relationship instead of CatalogueProduct
+            products = [p.to_dict() for p in self.direct_products.filter_by(is_deleted=False).order_by(db.text('created_at DESC')).all()]
             data['products'] = products
+            
+        if include_stories:
+            if for_artist:
+                # Artists see all stories (live and drafts)
+                data['stories'] = [s.to_dict() for s in self.posts.filter_by(type='story').all()]
+            else:
+                # Buyers only see published stories
+                data['stories'] = [s.to_dict() for s in self.posts.filter_by(type='story', is_published=True).all()]
+            
         return data
 
 

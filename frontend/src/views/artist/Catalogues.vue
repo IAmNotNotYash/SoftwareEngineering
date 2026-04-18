@@ -11,28 +11,29 @@
         <router-link to="/artist/newcatalogue" class="btn primary-btn">+ New Catalogue</router-link>
       </div>
 
-      <div class="catalogues-grid">
-        <div class="catalogue-card" v-for="c in catalogues" :key="c.name">
-          <div class="catalogue-bg" :style="{ backgroundImage: `url(${c.image})` }">
+      <div class="catalogues-grid" v-if="!loading">
+        <div class="catalogue-card" v-for="c in catalogues" :key="c.id">
+          <div class="catalogue-bg" :style="{ backgroundImage: `url(${getImageUrl(c.cover_photo_url)})` }">
             <div class="catalogue-overlay">
               
               <!-- Top bar: Status & Actions -->
               <div class="card-top">
                 <div class="status-badge" :class="c.status.toLowerCase()">{{ c.status }}</div>
                 <div class="actions">
-                  <button class="icon-btn edit-btn" title="Edit">✎</button>
+                  <router-link :to="`/artist/edit-catalogue/${c.id}`" class="icon-btn edit-btn" title="Edit">✎</router-link>
                   <button class="icon-btn end-btn" title="End Catalogue">⏹</button>
                 </div>
               </div>
               
               <!-- Bottom bar: Title & Stats -->
               <div class="card-bottom">
-                <h3>{{ c.name }}</h3>
+                <h3>{{ c.title }}</h3>
                 <div class="catalogue-stats">
-                  <div class="stat-item"><span class="stat-icon">₹</span> {{ c.revenue }}</div>
-                  <div class="stat-item"><span class="stat-icon">📦</span> {{ c.orders }}</div>
-                  <div class="stat-item"><span class="stat-icon">👁</span> {{ c.reach }}</div>
-                  <div class="stat-item"><span class="stat-icon">❤</span> {{ c.likes }}</div>
+                  <div class="stat-item" title="Revenue"><span class="stat-icon">₹</span> {{ formatPrice(c.stats?.total_revenue) }}</div>
+                  <div class="stat-item" title="Orders"><span class="stat-icon">📦</span> {{ c.stats?.total_orders || 0 }}</div>
+                  <div class="stat-item" title="Products"><span class="stat-icon">🖼</span> {{ c.product_count || 0 }}</div>
+                  <div class="stat-item" title="Views"><span class="stat-icon">👁</span> {{ c.stats?.total_views || 0 }}</div>
+                  <div class="stat-item" title="Likes"><span class="stat-icon">❤</span> {{ c.stats?.total_likes || 0 }}</div>
                 </div>
               </div>
 
@@ -40,19 +41,64 @@
           </div>
         </div>
       </div>
+
+      <div class="loading-state" v-else>
+        <p>Loading your collections...</p>
+      </div>
+
+      <div class="empty-state" v-if="!loading && catalogues.length === 0">
+        <p>You haven't created any catalogues yet.</p>
+        <router-link to="/artist/newcatalogue" class="btn primary-btn">Create Your First Catalogue</router-link>
+      </div>
     </main>
   </div>
 </template>
 
 <script setup>
+import { ref, onMounted } from 'vue'
 import ArtistNavbar from '../../components/ArtistNavbar.vue'
+import { getCatalogues } from '../../api/catalogue'
+import { useAuthStore } from '../../stores/auth'
 
-const catalogues = [
-  { name: 'Summer Art Collection', status: 'Live', revenue: '45,200', orders: 128, reach: '24.5K', likes: '3.2K', image: 'https://images.unsplash.com/photo-1544816155-12df9643f363?w=800' },
-  { name: 'Earth Tone Ceramics', status: 'Live', revenue: '32,800', orders: 95, reach: '18.2K', likes: '2.8K', image: 'https://images.unsplash.com/photo-1610701596007-11502861dcfa?w=800' },
-  { name: 'Digital Workshop Series', status: 'Draft', revenue: '0', orders: 0, reach: '0', likes: '0', image: 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=800' },
-  { name: 'Portrait Commission Sale', status: 'Ended', revenue: '68,400', orders: 42, reach: '31.0K', likes: '5.1K', image: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800' },
-]
+const authStore = useAuthStore()
+const catalogues = ref([])
+const loading = ref(true)
+
+const fetchCatalogues = async () => {
+  try {
+    const user_id = authStore.user?.id
+    if (!user_id) return
+    
+    // Fetch all statuses for the artist: live, draft, ended
+    const resLive = await getCatalogues({ status: 'live', user_id })
+    const resDraft = await getCatalogues({ status: 'draft', user_id })
+    const resEnded = await getCatalogues({ status: 'ended', user_id })
+    
+    catalogues.value = [
+      ...resLive.catalogues,
+      ...resDraft.catalogues,
+      ...resEnded.catalogues
+    ]
+  } catch (err) {
+    console.error("Failed to fetch catalogues:", err)
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(fetchCatalogues)
+
+const formatPrice = (val) => {
+  return new Intl.NumberFormat('en-IN', {
+    maximumFractionDigits: 0
+  }).format(val || 0)
+}
+
+const getImageUrl = (url) => {
+  if (!url) return 'https://images.unsplash.com/photo-1544816155-12df9643f363?w=800'
+  if (url.startsWith('http')) return url
+  return `http://localhost:5000${url}`
+}
 </script>
 
 <style scoped>
@@ -245,3 +291,16 @@ const catalogues = [
   opacity: 0.8;
 }
 </style>
+.loading-state, .empty-state {
+  text-align: center;
+  padding: 100px 20px;
+  background: #fff;
+  border-radius: 16px;
+  border: 2px dashed #eee;
+  margin-top: 20px;
+}
+.loading-state p, .empty-state p {
+  font-size: 18px;
+  color: #666;
+  margin-bottom: 24px;
+}
