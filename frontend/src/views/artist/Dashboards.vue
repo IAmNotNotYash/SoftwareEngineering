@@ -10,8 +10,6 @@
         </div>
         <div class="quick-actions">
           <RouterLink to="/artist/newcatalogue" class="btn primary-btn">+ New Catalogue</RouterLink>
-          <RouterLink to="/artist/products" class="btn secondary-btn">+ Add Product</RouterLink>
-          <RouterLink to="/artist/story" class="btn secondary-btn">+ Post Story</RouterLink>
         </div>
       </header>
 

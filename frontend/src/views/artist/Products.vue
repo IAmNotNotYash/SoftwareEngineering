@@ -6,167 +6,151 @@
       <div class="page-header">
         <div>
           <h1 class="page-title">Products</h1>
-          <p class="subtitle">Manage your product catalog and tier-based pricing rings.</p>
+          <p class="subtitle">All products across your catalogues.</p>
         </div>
-        <button class="btn primary-btn" @click="showAddProduct = true">+ Add Product</button>
       </div>
 
-      <div class="products-grid">
-        <div class="product-card" v-for="p in products" :key="p.name">
-          <div class="product-gallery" :style="p.images.length ? `background-image: url(${p.images[0]})` : `background: ${p.gradient}`">
-            <span class="photo-count">🖼 {{ p.photos || p.images.length }} photos</span>
+      <!-- Catalogue filter tabs -->
+      <div class="catalogue-tabs" v-if="catalogues.length">
+        <button
+          class="tab-btn"
+          :class="{ active: selectedCatalogueId === null }"
+          @click="selectedCatalogueId = null"
+        >All</button>
+        <button
+          v-for="cat in catalogues"
+          :key="cat.id"
+          class="tab-btn"
+          :class="{ active: selectedCatalogueId === cat.id }"
+          @click="selectedCatalogueId = cat.id"
+        >{{ cat.title }}</button>
+      </div>
+
+      <!-- Loading state -->
+      <div v-if="loading" class="state-box">
+        <div class="spinner"></div>
+        <p>Loading your products…</p>
+      </div>
+
+      <!-- Error state -->
+      <div v-else-if="error" class="state-box error-state">
+        <span>⚠️</span>
+        <p>{{ error }}</p>
+        <button class="btn primary-btn" @click="fetchProducts">Retry</button>
+      </div>
+
+      <!-- Empty state -->
+      <div v-else-if="filteredProducts.length === 0" class="state-box">
+        <span class="empty-icon">🎨</span>
+        <p>No products found{{ selectedCatalogueId ? ' in this catalogue' : '' }}.</p>
+      </div>
+
+      <!-- Product grid -->
+      <div class="products-grid" v-else>
+        <div class="product-card" v-for="p in filteredProducts" :key="p.id">
+          <div
+            class="product-gallery"
+            :style="imageUrl(p) ? `background-image: url(${imageUrl(p)})` : `background: linear-gradient(135deg,#e8e0d8,#faf8f5)`"
+          >
+            <div class="gallery-row">
+              <span class="photo-count">🖼 {{ (p.gallery && p.gallery.length) || 0 }} photo{{ (!p.gallery || p.gallery.length !== 1) ? 's' : '' }}</span>
+              <span v-if="!p.in_stock" class="out-of-stock-badge">Out of Stock</span>
+            </div>
           </div>
           <div class="product-body">
-            <h3>{{ p.name }}</h3>
-            <div class="tier-prices">
-              <div class="tier-row">
-                <span class="tier-badge"><span class="tier-dot follower-dot"></span> Follower</span>
-                <span>₹{{ p.follower.toLocaleString() }}</span>
-              </div>
-              <div class="tier-row">
-                <span class="tier-badge"><span class="tier-dot fan-dot"></span> Fan</span>
-                <span>₹{{ p.fan.toLocaleString() }}</span>
-              </div>
-              <div class="tier-row">
-                <span class="tier-badge"><span class="tier-dot patron-dot"></span> Patron</span>
-                <span>₹{{ p.patron.toLocaleString() }}</span>
-              </div>
+            <h3>{{ p.title }}</h3>
+            <p class="product-desc" v-if="p.description">{{ p.description }}</p>
+            <div class="price-row">
+              <span class="price-label">Price</span>
+              <span class="price-value">₹{{ Number(p.price).toLocaleString('en-IN') }}</span>
             </div>
-            <button class="btn secondary-btn edit-btn">Edit Product</button>
+            <div class="catalogue-tag" v-if="catalogueLabel(p.catalogue_id)">
+              📁 {{ catalogueLabel(p.catalogue_id) }}
+            </div>
+            <div class="card-actions">
+              <button class="btn primary-btn edit-btn" @click="openEdit(p)">Edit in Catalogue</button>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Add Product Modal -->
-      <div v-if="showAddProduct" class="modal-overlay" @click.self="showAddProduct = false">
-        <div class="modal">
-          <div class="modal-header">
-            <div>
-              <h2 class="modal-title">Add New Product</h2>
-              <p class="modal-subtitle">Upload product images and set pricing tiers.</p>
-            </div>
-            <button class="close-btn" @click="showAddProduct = false">×</button>
-          </div>
 
-          <div class="modal-body">
-            <div class="form-section">
-              <label class="form-label">Basic Information</label>
-              <div class="form-group">
-                <input v-model="newProduct.name" class="input-field" placeholder="Product Name (e.g. Handmade Ceramic Vase)" />
-              </div>
-              <div class="form-group">
-                <textarea v-model="newProduct.description" class="input-field" rows="3" placeholder="Describe the crafting process and materials..."></textarea>
-              </div>
-            </div>
-
-            <div class="form-section">
-              <label class="form-label">Product Imagery</label>
-              <div class="upload-zone" @click="triggerUpload">
-                <input type="file" ref="fileInput" hidden multiple accept="image/*" @change="handleImageUpload" />
-                <div class="upload-content" v-if="!newProduct.images.length">
-                  <span class="upload-icon">📸</span>
-                  <p>Click or drag images to upload</p>
-                  <small>JPG, PNG up to 10MB</small>
-                </div>
-                <div class="image-previews" v-else>
-                  <div class="preview-box" v-for="(img, idx) in newProduct.images" :key="idx" :style="{ backgroundImage: `url(${img})` }">
-                    <button class="remove-img" @click.stop="removeImage(idx)">×</button>
-                  </div>
-                  <div class="preview-box add-more" @click.stop="triggerUpload">
-                    <span>+</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="form-section">
-              <label class="form-label">Tiered Pricing</label>
-              <div class="tier-inputs">
-                <div class="tier-input-card">
-                  <span class="tier-badge"><span class="tier-dot follower-dot"></span> Follower</span>
-                  <div class="currency-input">
-                    <span>₹</span>
-                    <input v-model.number="newProduct.follower" type="number" placeholder="0" />
-                  </div>
-                </div>
-                <div class="tier-input-card">
-                  <span class="tier-badge"><span class="tier-dot fan-dot"></span> Fan</span>
-                  <div class="currency-input">
-                    <span>₹</span>
-                    <input v-model.number="newProduct.fan" type="number" placeholder="0" />
-                  </div>
-                </div>
-                <div class="tier-input-card">
-                  <span class="tier-badge"><span class="tier-dot patron-dot"></span> Patron</span>
-                  <div class="currency-input">
-                    <span>₹</span>
-                    <input v-model.number="newProduct.patron" type="number" placeholder="0" />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="modal-footer">
-            <button class="btn secondary-btn" @click="showAddProduct = false">Cancel</button>
-            <button class="btn primary-btn" @click="createProduct">Publish Product</button>
-          </div>
-        </div>
-      </div>
     </main>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import ArtistNavbar from '../../components/ArtistNavbar.vue'
+import { getProducts } from '../../api/products.js'
+import { getCatalogues } from '../../api/catalogue.js'
 
-const showAddProduct = ref(false)
-const fileInput = ref(null)
+// ── State ────────────────────────────────────────────────────────────────────
+const router = useRouter()
+const products = ref([])
+const catalogues = ref([])
+const selectedCatalogueId = ref(null)
+const loading = ref(true)
+const error = ref(null)
 
-const products = ref([
-  { name: 'Abstract Canvas Print', photos: 4, gradient: 'linear-gradient(135deg,#e8e0d8,#faf8f5)', images: ['https://images.unsplash.com/photo-1544816155-12df9643f363?w=600'], follower: 1200, fan: 999, patron: 799 },
-  { name: 'Digital Art Bundle', photos: 6, gradient: 'linear-gradient(135deg,#e8e0d8,#faf8f5)', images: ['https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600'], follower: 500, fan: 399, patron: 299 },
-  { name: 'Earth Tone Teapot', photos: 3, gradient: 'linear-gradient(135deg,#e8e0d8,#faf8f5)', images: ['https://images.unsplash.com/photo-1610701596007-11502861dcfa?w=600'], follower: 3500, fan: 2999, patron: 2499 },
-])
+// ── Computed ─────────────────────────────────────────────────────────────────
+const filteredProducts = computed(() => {
+  if (!selectedCatalogueId.value) return products.value
+  return products.value.filter(p => p.catalogue_id === selectedCatalogueId.value)
+})
 
-const newProduct = reactive({ name: '', description: '', images: [], follower: 0, fan: 0, patron: 0 })
-
-const triggerUpload = () => {
-  fileInput.value.click()
+// ── Helpers ───────────────────────────────────────────────────────────────────
+// The API returns `p.image` (primary URL string) and `p.gallery` (array of URL strings)
+function imageUrl(product) {
+  const url = product.image || (product.gallery && product.gallery[0]) || null
+  if (!url) return null
+  // Prefix the Flask dev server base for local /static/ paths
+  if (url.startsWith('/static/')) {
+    return `http://localhost:5000${url}`
+  }
+  return url
 }
 
-const handleImageUpload = (e) => {
-  const files = e.target.files
-  if (!files) return
-  
-  for(let i=0; i < files.length; i++) {
-    const url = URL.createObjectURL(files[i])
-    newProduct.images.push(url)
+function catalogueLabel(catalogueId) {
+  if (!catalogueId) return null
+  const cat = catalogues.value.find(c => c.id === catalogueId)
+  return cat ? cat.title : null
+}
+
+// ── Fetch ─────────────────────────────────────────────────────────────────────
+async function fetchProducts() {
+  loading.value = true
+  error.value = null
+  try {
+    const userJson = sessionStorage.getItem('user')
+    const userId = userJson ? JSON.parse(userJson).id : null
+    const [productsData, catalogueData] = await Promise.all([
+      getProducts({ user_id: userId }),
+      getCatalogues({ user_id: userId, status: '' })
+    ])
+    // API returns array directly for products
+    products.value = Array.isArray(productsData) ? productsData : (productsData.products || [])
+    catalogues.value = Array.isArray(catalogueData) ? catalogueData : (catalogueData.catalogues || [])
+  } catch (err) {
+    error.value = err.message || 'Failed to load products.'
+  } finally {
+    loading.value = false
   }
 }
 
-const removeImage = (idx) => {
-  newProduct.images.splice(idx, 1)
+// ── Actions ───────────────────────────────────────────────────────────────────
+function openEdit(product) {
+  if (product.catalogue_id) {
+    router.push({ path: `/artist/edit-catalogue/${product.catalogue_id}`, query: { section: 'products' } })
+  } else {
+    router.push('/artist/catalogues')
+  }
 }
 
-const createProduct = () => {
-  if (!newProduct.name) return
-  
-  products.value.unshift({
-    name: newProduct.name,
-    photos: newProduct.images.length,
-    gradient: 'linear-gradient(135deg,#f0f0f0,#e0e0e0)',
-    images: [...newProduct.images],
-    follower: newProduct.follower,
-    fan: newProduct.fan,
-    patron: newProduct.patron,
-  })
-  
-  Object.assign(newProduct, { name: '', description: '', images: [], follower: 0, fan: 0, patron: 0 })
-  showAddProduct.value = false
-}
+onMounted(fetchProducts)
 </script>
+
 
 <style scoped>
 .products-page {
@@ -223,6 +207,138 @@ const createProduct = () => {
   border: 1px solid #e8e0d8;
   color: #1a1a1a;
 }
+
+.danger-btn {
+  background: #dc2626;
+  color: #fff;
+  border: none;
+}
+.danger-btn:hover:not(:disabled) { background: #b91c1c; }
+.danger-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* Catalogue filter tabs */
+.catalogue-tabs {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 32px;
+}
+
+.tab-btn {
+  padding: 8px 18px;
+  border-radius: 20px;
+  border: 1px solid #e8e0d8;
+  background: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  color: #555;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab-btn:hover { border-color: #C4622D; color: #C4622D; }
+.tab-btn.active { background: #C4622D; color: #fff; border-color: #C4622D; }
+
+/* State boxes (loading / error / empty) */
+.state-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  gap: 16px;
+  color: #888;
+  font-size: 16px;
+}
+
+.empty-icon { font-size: 48px; }
+
+.error-state { color: #dc2626; }
+
+/* Spinner */
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #e8e0d8;
+  border-top-color: #C4622D;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Product card extras */
+.product-desc {
+  font-size: 13px;
+  color: #888;
+  margin: 0 0 12px 0;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.price-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.price-label {
+  font-size: 13px;
+  color: #888;
+}
+
+.price-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #C4622D;
+}
+
+.catalogue-tag {
+  font-size: 12px;
+  color: #777;
+  background: #faf8f5;
+  border: 1px solid #e8e0d8;
+  border-radius: 20px;
+  padding: 4px 10px;
+  display: inline-block;
+  margin-bottom: 14px;
+}
+
+.card-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.card-actions .btn {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+.out-of-stock-badge {
+  background: rgba(220,38,38,0.85);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+  backdrop-filter: blur(4px);
+  margin-left: auto;
+}
+
+/* Confirm modal */
+.confirm-modal {
+  max-width: 420px;
+}
+
+.confirm-modal .modal-body p {
+  font-size: 15px;
+  color: #444;
+  line-height: 1.6;
+}
 .secondary-btn:hover { border-color: #C4622D; color: #C4622D; }
 
 /* Grid */
@@ -250,9 +366,18 @@ const createProduct = () => {
   height: 200px;
   background-size: cover;
   background-position: center;
+  background-color: #f5f1ed;
   padding: 16px;
   display: flex;
   align-items: flex-end;
+}
+
+.gallery-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 8px;
 }
 
 .photo-count {
