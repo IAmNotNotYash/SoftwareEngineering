@@ -53,8 +53,9 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import ArtistNavbar from '../../components/ArtistNavbar.vue'
+import { getOrders, updateOrderStatus } from '../../api/commerce.js'
 
 const columns = [
   { id: 'pending', title: 'New Orders', nextAction: 'Mark Processing', nextId: 'processing' },
@@ -63,20 +64,38 @@ const columns = [
   { id: 'delivered', title: 'Delivered', nextAction: null, nextId: null }
 ]
 
-const orders = ref([
-  { id: 'ORD-8402', buyerName: 'Aarva Sharma', status: 'pending', total: 6800, items: [{qty: 2, name: 'Earth Tone Teapot', price: 3400}] },
-  { id: 'ORD-8399', buyerName: 'Rohan Gupta', status: 'pending', total: 1200, items: [{qty: 1, name: 'Abstract Canvas Print', price: 1200}] },
-  { id: 'ORD-8350', buyerName: 'Mira Desai', status: 'processing', total: 500, items: [{qty: 1, name: 'Digital Art Bundle', price: 500}] },
-  { id: 'ORD-8210', buyerName: 'Kavya Singh', status: 'shipped', total: 3500, items: [{qty: 1, name: 'Custom Portrait', price: 3500}] },
-  { id: 'ORD-8005', buyerName: 'Aditya Patel', status: 'delivered', total: 2400, items: [{qty: 2, name: 'Abstract Canvas Print', price: 1200}] },
-])
+const orders = ref([])
+const loading = ref(true)
+
+const fetchOrders = async () => {
+  try {
+    const data = await getOrders()
+    orders.value = data.map(o => ({
+      ...o,
+      buyerName: o.buyer_name || 'Guest Buyer',
+      // items are already in o.items from the backend to_dict
+    }))
+  } catch (err) {
+    console.error("Failed to fetch orders:", err)
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(fetchOrders)
 
 const getOrdersInStatus = (statusId) => {
   return orders.value.filter(o => o.status === statusId)
 }
 
-const advanceOrder = (order, nextId) => {
-  order.status = nextId
+const advanceOrder = async (order, nextId) => {
+  try {
+    // API uses real UUIDs, but display_id is ORD-xxxx
+    await updateOrderStatus(order.id, nextId)
+    order.status = nextId
+  } catch (err) {
+    alert("Failed to update order: " + err.message)
+  }
 }
 </script>
 

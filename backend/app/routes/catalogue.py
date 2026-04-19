@@ -9,6 +9,7 @@ from werkzeug.utils import secure_filename
 from app import db
 from app.models.catalogue import Catalogue, CatalogueProduct, CatalogueStats, CatalogueView, CatalogueLike
 from app.models.user import ArtistProfile, BuyerProfile
+from app.models.social import Follow
 
 catalogue_bp = Blueprint('catalogue', __name__)
 
@@ -165,6 +166,40 @@ def list_catalogues():
         q = q.filter(Catalogue.title.ilike(f'%{search}%'))
 
     catalogues = q.order_by(Catalogue.published_at.desc()).all()
+    return jsonify([c.to_dict() for c in catalogues]), 200
+
+
+# ── BUYER: Personalized Feed ──────────────────────────────────────────────────
+@catalogue_bp.route('/feed', methods=['GET'])
+@jwt_required()
+def get_catalogue_feed():
+    identity = _get_identity()
+    if identity.get('role') != 'buyer':
+        # Default to all live catalogues if not a buyer or just for simplicity
+        catalogues = Catalogue.query.filter_by(status='live').order_by(Catalogue.published_at.desc()).limit(10).all()
+        return jsonify([c.to_dict() for c in catalogues]), 200
+    
+    buyer = _buyer_profile(identity['id'])
+    if not buyer:
+        return jsonify({'error': 'Buyer profile not found'}), 404
+    
+    followed_artists = Follow.query.filter_by(buyer_id=buyer.id).all()
+    artist_ids = [f.artist_id for f in followed_artists]
+    
+    if not artist_ids:
+        # If not following anyone, return recent
+        catalogues = Catalogue.query.filter_by(status='live').order_by(Catalogue.published_at.desc()).limit(3).all()
+        return jsonify([c.to_dict() for c in catalogues]), 200
+        
+    catalogues = Catalogue.query.filter(
+        Catalogue.artist_id.in_(artist_ids),
+        Catalogue.status == 'live'
+    ).order_by(Catalogue.published_at.desc()).limit(10).all()
+    
+    # NEW: Fallback if followed artists have no live catalogues
+    if not catalogues:
+        catalogues = Catalogue.query.filter_by(status='live').order_by(Catalogue.published_at.desc()).limit(3).all()
+    
     return jsonify([c.to_dict() for c in catalogues]), 200
 
 

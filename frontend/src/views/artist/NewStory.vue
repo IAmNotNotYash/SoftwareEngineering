@@ -6,8 +6,12 @@
       <div class="composer-card">
         <header class="composer-header">
           <RouterLink to="/artist/dashboard" class="back-link">← Back to Dashboard</RouterLink>
-          <button class="btn primary-btn" @click="publishStory" :disabled="!title || !content">
-            Publish Story
+          <button 
+            class="btn primary-btn" 
+            @click="publishStory" 
+            :disabled="!title || !content || isPublishing"
+          >
+            {{ isPublishing ? 'Publishing...' : 'Publish Story' }}
           </button>
         </header>
 
@@ -52,12 +56,15 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import ArtistNavbar from '../../components/ArtistNavbar.vue'
+import { createPost } from '../../api/social.js'
 
 const router = useRouter()
 const title = ref('')
 const content = ref('')
-const coverImage = ref(null)
+const coverImage = ref(null) // Public URL
+const coverFile = ref(null) // Real File object
 const fileInput = ref(null)
+const isPublishing = ref(false)
 
 const triggerUpload = () => {
   fileInput.value.click()
@@ -66,12 +73,52 @@ const triggerUpload = () => {
 const handleImageUpload = (e) => {
   const file = e.target.files[0]
   if (!file) return
+  coverFile.value = file
   coverImage.value = URL.createObjectURL(file)
 }
 
-const publishStory = () => {
-  alert("Story successfully published to your subscribers!")
-  router.push('/artist/dashboard')
+const publishStory = async () => {
+  if (!title.value || !content.value) return
+  
+  isPublishing.value = true
+  try {
+    let finalCoverUrl = null
+    
+    // 1. Upload cover image if exists
+    if (coverFile.value) {
+      const formData = new FormData()
+      formData.append('file', coverFile.value)
+      
+      const uploadRes = await fetch('http://localhost:5000/api/social/upload-image', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${sessionStorage.getItem('token')}`
+        },
+        body: formData
+      })
+      
+      if (uploadRes.ok) {
+        const { url } = await uploadRes.json()
+        finalCoverUrl = url
+      }
+    }
+    
+    // 2. Create the post
+    await createPost({
+      title: title.value,
+      body: content.value,
+      cover_image_url: finalCoverUrl,
+      type: 'story',
+      is_published: true
+    })
+    
+    alert("Story successfully published!")
+    router.push('/artist/dashboard')
+  } catch (err) {
+    alert("Failed to publish: " + err.message)
+  } finally {
+    isPublishing.value = false
+  }
 }
 </script>
 

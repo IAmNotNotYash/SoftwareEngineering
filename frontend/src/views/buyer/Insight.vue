@@ -2,49 +2,77 @@
   <div>
     <BuyerNavbar />
     
-    <div class="page-container article-container">
+    <div class="page-container article-container" v-if="post">
       <!-- Breadcrumb -->
       <div class="breadcrumb">
         <RouterLink to="/buyer/dashboard">Dashboard</RouterLink>
         <span class="separator">/</span>
-        <span class="current">Art Insight</span>
+        <span class="current">{{ post.type === 'insight' ? 'Insight' : 'Story' }}</span>
       </div>
 
       <article class="insight-article">
         <div class="article-header">
-          <div class="artist-meta">By <strong>Luna Ceramics</strong></div>
-          <h1 class="article-title">The Deep Roots of Terracotta</h1>
-          <div class="article-date">Published 3 days ago</div>
+          <div class="artist-meta">By <strong>{{ post.artist_name }}</strong></div>
+          <h1 class="article-title">{{ post.title }}</h1>
+          <div class="article-date">Published {{ formatDate(post.published_at || post.created_at) }}</div>
         </div>
 
-        <div class="hero-image" style="background-image: url('https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&fit=crop&q=80&w=1200')"></div>
+        <div v-if="post.cover_image_url" class="hero-image" :style="{ backgroundImage: `url(${post.cover_image_url})` }"></div>
 
         <div class="article-body">
-          <p class="lead-paragraph">Terracotta has been a vital part of human history since 24,000 BC. In this post, I explore how I source local regional clays to honor that tradition.</p>
-          
-          <p>Long before glazes and sophisticated kiln technologies existed, early human settlements relied on the natural earth baked in rudimentary fire pits. The porous nature of the fired earth was imperfect, yet perfectly suited for cooling water in hot climates. It's this raw, unfiltered connection to the planet's surface that continually draws me back to terracotta as my primary medium.</p>
-
-          <blockquote>"There is an honesty in unglazed clay. It hides nothing. Every pinch, every coil, and every burn mark from the kiln remains as a permanent record of its creation."</blockquote>
-
-          <h2>Sourcing the Clay</h2>
-          <p>Instead of purchasing commercially mixed clays, I spend weeks during the dry season visiting local riverbanks and exposed hillsides. The regional clay here is rich in iron oxide, which gives it that signature rusty, sunset-orange hue when fired. Processing it takes time—slaking, sieving, and aging the clay for months—but the result is a material entirely unique to this geographical coordinate.</p>
-          
-          <img src="https://images.unsplash.com/photo-1620189507195-68309c04c4d0?auto=format&fit=crop&q=80&w=800" class="inline-image" />
-
-          <h2>The Firing Process</h2>
-          <p>We fire our pieces using a traditional wood-fired technique. The fluctuating temperatures and the ash that settles on the pieces during the firing create unpredictable flashes of color—blacks, grays, and deep reds—meaning no two vessels can ever be identical.</p>
-
-          <p>When you hold one of these pieces, you are holding a fragment of the landscape, transformed by heat and human hands.</p>
+          <div class="body-text" v-html="formattedBody"></div>
         </div>
       </article>
+    </div>
+    
+    <div class="page-container loading-container" v-else-if="loading">
+      <p>Loading the artisan's journey...</p>
+    </div>
+    
+    <div class="page-container error-container" v-else>
+      <p>Could not find this story. It might have been moved or archived.</p>
+      <RouterLink to="/buyer/dashboard" class="back-link">Back to Dashboard</RouterLink>
     </div>
   </div>
 </template>
 
 <script setup>
+import { ref, onMounted, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import BuyerNavbar from '../../components/BuyerNavbar.vue'
-// Note: In a real app, you would fetch the specific insight using route.params.id
-// For this mock, we are displaying static beautiful article content.
+import { getPost } from '../../api/social.js'
+
+const route = useRoute()
+const post = ref(null)
+const loading = ref(true)
+
+onMounted(async () => {
+  try {
+    const id = route.params.id
+    post.value = await getPost(id)
+  } catch (err) {
+    console.error("Failed to load post:", err)
+  } finally {
+    loading.value = false
+  }
+})
+
+const formattedBody = computed(() => {
+  if (!post.value?.body) return ''
+  // Convert newlines to paragraphs for basic formatting if it's plain text
+  // If it's HTML (from a rich editor), it might already have tags
+  if (post.value.body.includes('<p>')) return post.value.body
+  return post.value.body.split('\n').map(p => p.trim() ? `<p>${p}</p>` : '').join('')
+})
+
+const formatDate = (dateStr) => {
+  if (!dateStr) return 'Recently'
+  return new Date(dateStr).toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric'
+  })
+}
 </script>
 
 <style scoped>

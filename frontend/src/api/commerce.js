@@ -31,6 +31,10 @@ export async function getArtists() {
   return request('/artists')
 }
 
+export async function getArtist(id) {
+  return request(`/artists/${id}`)
+}
+
 // ── Products ──────────────────────────────────────────────────────────────────
 export async function getProducts({ category = '', search = '', artist_id = '' } = {}) {
   const params = new URLSearchParams()
@@ -43,6 +47,41 @@ export async function getProducts({ category = '', search = '', artist_id = '' }
 
 export async function getProductDetails(id) {
   return request(`/products/${id}`)
+}
+
+export async function createProduct(payload) {
+  return request('/products', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  })
+}
+
+export async function updateProduct(id, payload) {
+  return request(`/products/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload)
+  })
+}
+
+export async function deleteProduct(id) {
+  return request(`/products/${id}`, {
+    method: 'DELETE'
+  })
+}
+
+export async function uploadProductImage(productId, file) {
+  const formData = new FormData()
+  formData.append('file', file)
+  
+  const token = sessionStorage.getItem('token')
+  const res = await fetch(`${API_URL}/products/${productId}/upload-image`, {
+    method: 'POST',
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: formData
+  })
+  return handleResponse(res)
 }
 
 // ── Cart ─────────────────────────────────────────────────────────────────────
@@ -90,4 +129,11 @@ export async function getOrderDetails(orderId) {
 
 export async function getOrderTracking(orderId) {
   return request(`/orders/${orderId}/tracking`)
+}
+
+export async function updateOrderStatus(orderId, status, note = '') {
+  return request(`/orders/${orderId}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status, note })
+  })
 }

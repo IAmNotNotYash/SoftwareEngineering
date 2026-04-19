@@ -60,7 +60,9 @@ def register():
             'id': user.id,
             'email': user.email,
             'role': user.role,
-            'name': full_name
+            'name': full_name,
+            'artistId': artist_profile.id if role == 'artist' else None,
+            'buyerId': buyer_profile.id if role == 'buyer' else None
         }
     }), 201
 
@@ -106,7 +108,9 @@ def login():
             'email': user.email,
             'role': user.role,
             'name': name,
-            'brandName': brand_name
+            'brandName': brand_name,
+            'artistId': user.artist_profile.id if user.role == 'artist' and user.artist_profile else None,
+            'buyerId': user.buyer_profile.id if user.role == 'buyer' and user.buyer_profile else None
         }
     }), 200
 

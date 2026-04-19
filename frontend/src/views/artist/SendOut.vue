@@ -203,7 +203,8 @@
 import { ref, onMounted, computed } from 'vue'
 import ArtistNavbar from '../../components/ArtistNavbar.vue'
 import { getCatalogues } from '../../api/catalogue.js'
-import { getAudienceSize, sendBroadcast as apiSendBroadcast } from '../../api/communication.js'
+import { getAudienceSize, sendBroadcast as apiSendBroadcast, getBroadcasts } from '../../api/communication.js'
+import { getFollowers } from '../../api/social.js'
 
 const activeTab = ref('composer')
 const message = ref("🎨 Exciting news! Check out my latest collection — crafted with love and available now at special prices. Don't miss out!")
@@ -227,20 +228,8 @@ const platforms = ref([
   { id: 'tg', icon: '✈️', label: 'Telegram', active: true },
 ])
 
-const broadcastHistory = ref([
-  { id: 1, date: '2026-03-28', title: 'Summer Art Collection', status: 'Delivered', reach: 18402, engagement: '12.4%', platforms: ['✉️', '✈️'] },
-  { id: 2, date: '2026-03-15', title: 'Flash Sale: Ceramics', status: 'Delivered', reach: 17950, engagement: '8.1%', platforms: ['✉️', '📸', '📘'] },
-  { id: 3, date: '2026-02-28', title: 'Exclusive Reveal', status: 'Delivered', reach: 16200, engagement: '15.2%', platforms: ['✉️', '✈️'] },
-])
-
-const subscribers = ref([
-  { id: 1, name: 'Aarav Sharma', type: 'Patron', joined: '2025-11-20', orders: 12, value: '₹42,500' },
-  { id: 2, name: 'Mira Desai', type: 'Fan', joined: '2026-01-05', orders: 4, value: '₹8,200' },
-  { id: 3, name: 'Rohan Gupta', type: 'Follower', joined: '2026-02-14', orders: 1, value: '₹1,200' },
-  { id: 4, name: 'Kavya Singh', type: 'Patron', joined: '2025-09-12', orders: 28, value: '₹89,400' },
-  { id: 5, name: 'Aditya Patel', type: 'Follower', joined: '2026-03-01', orders: 0, value: '₹0' },
-  { id: 6, name: 'Sana Khan', type: 'Fan', joined: '2026-03-10', orders: 2, value: '₹3,500' },
-])
+const broadcastHistory = ref([])
+const subscribers = ref([])
 
 const filteredSubscribers = computed(() => {
   if (!searchQuery.value) return subscribers.value
@@ -254,12 +243,23 @@ const getRandomColor = () => {
 
 onMounted(async () => {
   try {
-    const [audienceData, catalogueData] = await Promise.all([
+    const [audienceData, catalogueData, historyData, followersData] = await Promise.all([
       getAudienceSize(),
-      getCatalogues()
+      getCatalogues(),
+      getBroadcasts(),
+      getFollowers()
     ])
     audienceSize.value = audienceData.count
     catalogues.value = catalogueData.catalogues || []
+    broadcastHistory.value = historyData.map(h => ({
+      ...h,
+      date: new Date(h.sent_at).toLocaleDateString(),
+      platforms: h.platforms || [],
+      reach: audienceData.count, // Simplified
+      engagement: '0%'
+    }))
+    subscribers.value = followersData
+    
     if (catalogues.value.length) {
       selectedCatalogueId.value = catalogues.value[0].id
     }

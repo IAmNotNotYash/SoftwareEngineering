@@ -11,8 +11,8 @@
         <button class="btn primary-btn" @click="showAddProduct = true">+ Add Product</button>
       </div>
 
-      <div class="products-grid">
-        <div class="product-card" v-for="p in products" :key="p.name">
+      <div class="products-grid" v-if="!loading && products.length">
+        <div class="product-card" v-for="p in products" :key="p.id">
           <div class="product-gallery" :style="p.images.length ? `background-image: url(${p.images[0]})` : `background: ${p.gradient}`">
             <span class="photo-count">🖼 {{ p.photos || p.images.length }} photos</span>
           </div>
@@ -22,23 +22,39 @@
               <span class="price-label">Price</span>
               <span class="price-value">₹{{ p.price.toLocaleString() }}</span>
             </div>
-            <button class="btn secondary-btn edit-btn">Edit Product</button>
+            <button class="btn secondary-btn edit-btn" @click="startEdit(p)">Edit Product</button>
           </div>
         </div>
       </div>
 
-      <!-- Add Product Modal -->
-      <div v-if="showAddProduct" class="modal-overlay" @click.self="showAddProduct = false">
+      <div class="empty-state" v-if="!loading && products.length === 0">
+        <p>You haven't listed any products yet. Start by adding your first creation!</p>
+        <button class="btn primary-btn" @click="showAddProduct = true">Add Your First Product</button>
+      </div>
+
+      <div class="loading-state" v-if="loading">
+        <p>Loading your catalog...</p>
+      </div>
+
+      <!-- Add/Edit Product Modal -->
+      <div v-if="showAddProduct" class="modal-overlay" @click.self="closeModal">
         <div class="modal">
           <div class="modal-header">
             <div>
-              <h2 class="modal-title">Add New Product</h2>
-              <p class="modal-subtitle">Upload product images and set the price.</p>
+              <h2 class="modal-title">{{ isEditing ? 'Edit Product' : 'Add New Product' }}</h2>
+              <p class="modal-subtitle">{{ isEditing ? 'Update your product details.' : 'Upload product images and set the price.' }}</p>
             </div>
-            <button class="close-btn" @click="showAddProduct = false">×</button>
+            <button class="close-btn" @click="closeModal">×</button>
           </div>
 
           <div class="modal-body">
+            <div class="form-section" v-if="isEditing">
+               <div class="form-group" style="flex-direction: row; align-items: center; gap: 8px;">
+                 <input type="checkbox" v-model="newProduct.in_stock" id="in_stock_check" />
+                 <label for="in_stock_check" style="margin:0; text-transform: none; color: #333; cursor:pointer;">In Stock</label>
+               </div>
+            </div>
+
             <div class="form-section">
               <label class="form-label">Basic Information</label>
               <div class="form-group">
@@ -59,7 +75,7 @@
                   <small>JPG, PNG up to 10MB</small>
                 </div>
                 <div class="image-previews" v-else>
-                  <div class="preview-box" v-for="(img, idx) in newProduct.images" :key="idx" :style="{ backgroundImage: `url(${img})` }">
+                  <div class="preview-box" v-for="(img, idx) in newProduct.images" :key="idx" :style="{ backgroundImage: `url(${img.url})` }">
                     <button class="remove-img" @click.stop="removeImage(idx)">×</button>
                   </div>
                   <div class="preview-box add-more" @click.stop="triggerUpload">
@@ -82,8 +98,8 @@
           </div>
 
           <div class="modal-footer">
-            <button class="btn secondary-btn" @click="showAddProduct = false">Cancel</button>
-            <button class="btn primary-btn" @click="createProduct">Publish Product</button>
+            <button class="btn secondary-btn" @click="closeModal">Cancel</button>
+            <button class="btn primary-btn" @click="saveProduct">{{ isEditing ? 'Update Product' : 'Publish Product' }}</button>
           </div>
         </div>
       </div>
@@ -92,19 +108,21 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import ArtistNavbar from '../../components/ArtistNavbar.vue'
+import { getProducts, createProduct as apiCreateProduct, updateProduct as apiUpdateProduct, uploadProductImage } from '../../api/commerce.js'
+import { useAuthStore } from '../../stores/auth'
 
+const authStore = useAuthStore()
 const showAddProduct = ref(false)
+const isEditing = ref(false)
+const editingId = ref(null)
+const loading = ref(true)
 const fileInput = ref(null)
 
-const products = ref([
-  { name: 'Abstract Canvas Print', photos: 4, gradient: 'linear-gradient(135deg,#e8e0d8,#faf8f5)', images: ['https://images.unsplash.com/photo-1544816155-12df9643f363?w=600'], price: 1200 },
-  { name: 'Digital Art Bundle', photos: 6, gradient: 'linear-gradient(135deg,#e8e0d8,#faf8f5)', images: ['https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600'], price: 500 },
-  { name: 'Earth Tone Teapot', photos: 3, gradient: 'linear-gradient(135deg,#e8e0d8,#faf8f5)', images: ['https://images.unsplash.com/photo-1610701596007-11502861dcfa?w=600'], price: 3500 },
-])
+const products = ref([])
 
-const newProduct = reactive({ name: '', description: '', images: [], price: 0 })
+const newProduct = reactive({ name: '', description: '', images: [], price: 0, in_stock: true })
 
 const triggerUpload = () => {
   fileInput.value.click()
@@ -115,8 +133,11 @@ const handleImageUpload = (e) => {
   if (!files) return
   
   for(let i=0; i < files.length; i++) {
-    const url = URL.createObjectURL(files[i])
-    newProduct.images.push(url)
+    const file = files[i]
+    newProduct.images.push({
+      file,
+      url: URL.createObjectURL(file)
+    })
   }
 }
 
@@ -124,20 +145,85 @@ const removeImage = (idx) => {
   newProduct.images.splice(idx, 1)
 }
 
-const createProduct = () => {
-  if (!newProduct.name) return
-  
-  products.value.unshift({
-    name: newProduct.name,
-    photos: newProduct.images.length,
-    gradient: 'linear-gradient(135deg,#f0f0f0,#e0e0e0)',
-    images: [...newProduct.images],
-    price: newProduct.price,
-  })
-  
-  Object.assign(newProduct, { name: '', description: '', images: [], price: 0 })
-  showAddProduct.value = false
+const startEdit = (p) => {
+  isEditing.value = true
+  editingId.value = p.id
+  newProduct.name = p.name
+  newProduct.description = p.description
+  newProduct.price = p.price
+  newProduct.in_stock = p.in_stock
+  newProduct.images = (p.images || []).map(url => ({ url, file: null }))
+  showAddProduct.value = true
 }
+
+const closeModal = () => {
+  showAddProduct.value = false
+  isEditing.value = false
+  editingId.value = null
+  Object.assign(newProduct, { name: '', description: '', images: [], price: 0, in_stock: true })
+}
+
+const saveProduct = async () => {
+  if (!newProduct.name || !newProduct.price) {
+    alert("Please enter a name and price.")
+    return
+  }
+  
+  try {
+    loading.value = true
+    const payload = {
+      title: newProduct.name,
+      description: newProduct.description,
+      price: newProduct.price,
+      category: 'Art',
+      in_stock: newProduct.in_stock
+    }
+    
+    let product
+    if (isEditing.value) {
+      product = await apiUpdateProduct(editingId.value, payload)
+    } else {
+      product = await apiCreateProduct(payload)
+    }
+    
+    // Upload new images (those with a file object)
+    for (const img of newProduct.images) {
+      if (img.file) {
+        await uploadProductImage(product.id, img.file)
+      }
+    }
+    
+    closeModal()
+    await fetchProducts()
+  } catch (err) {
+    alert("Failed to save product: " + err.message)
+  } finally {
+    loading.value = false
+  }
+}
+
+const fetchProducts = async () => {
+  try {
+    const data = await getProducts({ user_id: authStore.user?.id })
+    products.value = data.map(p => {
+      const gallery = (p.gallery || []).map(url => 
+        url.startsWith('http') ? url : `http://localhost:5000${url}`
+      )
+      return {
+        ...p,
+        name: p.title,
+        images: gallery,
+        gradient: 'linear-gradient(135deg,#f0f0f0,#e0e0e0)'
+      }
+    })
+  } catch (err) {
+    console.error("Failed to fetch products:", err)
+  } finally {
+    loading.value = false
+  }
+}
+
+onMounted(fetchProducts)
 </script>
 
 <style scoped>

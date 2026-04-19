@@ -51,6 +51,10 @@ export function getCatalogue(id) {
   return request(`/${id}`)
 }
 
+export function getCatalogueFeed() {
+  return request('/feed')
+}
+
 // ── Artist CRUD ───────────────────────────────────────────────────────────────
 export function createCatalogue(payload) {
   return request('', { method: 'POST', body: JSON.stringify(payload) })

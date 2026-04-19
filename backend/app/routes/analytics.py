@@ -26,15 +26,9 @@ def get_artist_trend():
     artist = ArtistProfile.query.filter_by(user_id=identity['id']).first()
     trends = ArtistRevenueTrend.query.filter_by(artist_id=artist.id).order_by(ArtistRevenueTrend.month.asc()).all()
     
-    # If no real trend data, return some defaults for UI visualization
+    # If no real trend data, return empty list
     if not trends:
-        months = ["2026-01", "2026-02", "2026-03", "2026-04"]
-        return jsonify([
-            {'month': 'Jan', 'revenue': 45000, 'views': 120},
-            {'month': 'Feb', 'revenue': 52000, 'views': 150},
-            {'month': 'Mar', 'revenue': 48000, 'views': 140},
-            {'month': 'Apr', 'revenue': 61000, 'views': 210},
-        ]), 200
+        return jsonify([]), 200
         
     return jsonify([t.to_dict() for t in trends]), 200
 
@@ -48,12 +42,7 @@ def get_platform_trend():
     trends = PlatformRevenueTrend.query.order_by(PlatformRevenueTrend.month.asc()).all()
     
     if not trends:
-        return jsonify([
-            {'month': 'Jan', 'revenue': 1200000},
-            {'month': 'Feb', 'revenue': 1500000},
-            {'month': 'Mar', 'revenue': 1800000},
-            {'month': 'Apr', 'revenue': 2200000},
-        ]), 200
+        return jsonify([]), 200
         
     return jsonify([t.to_dict() for t in trends]), 200
 
@@ -71,10 +60,10 @@ def get_snapshot():
         snapshot = AnalyticsSnapshot.query.filter_by(entity_type='platform').order_by(AnalyticsSnapshot.generated_at.desc()).first()
         
     if not snapshot:
-        # Mock AI summary if none exists
+        # Return empty snapshot
         return jsonify({
-            'ai_summary': "Your brand identity is resonating strongly with 'Home Decor' enthusiasts. We've seen a 22% increase in catalogue engagement this month, primarily driven by your 'Earth Tones' collection. Consider launching a follow-up drop with exclusive early access to your top 10% followers.",
-            'sentiment_summary': "Buyers frequently praise the 'organic texture' and 'durability' of your ceramics. 94% of reviews contain positive sentiment regarding packaging quality."
+            'ai_summary': "No performance narrative available yet. Start launching catalogues to get insights.",
+            'sentiment_summary': "No buyer sentiment data available yet."
         }), 200
         
     return jsonify(snapshot.to_dict()), 200

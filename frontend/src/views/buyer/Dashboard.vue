@@ -46,7 +46,7 @@
           <div v-for="insight in insights" :key="insight.id" class="insight-card">
             <div class="insight-image" :style="{ backgroundImage: `url(${insight.image})` }"></div>
             <div class="insight-content">
-              <div class="insight-artist">Insight by {{ insight.artist }}</div>
+              <div class="insight-artist">{{ insight.type === 'insight' ? 'Insight' : 'Story' }} by {{ insight.artist }}</div>
               <h3 class="insight-title">{{ insight.title }}</h3>
               <p class="insight-excerpt">{{ insight.excerpt }}</p>
               <RouterLink :to="`/buyer/insight/${insight.id}`" class="read-more-btn" style="display:inline-block; text-decoration:none;">Read Story</RouterLink>
@@ -87,8 +87,9 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import BuyerNavbar from '../../components/BuyerNavbar.vue'
-import { getProducts, getArtists } from '../../api/commerce.js'
-import { getCatalogues } from '../../api/catalogue.js'
+import { getArtists } from '../../api/commerce.js'
+import { getFeaturedProducts } from '../../api/buyer.js'
+import { getCatalogueFeed } from '../../api/catalogue.js'
 import { getPosts, followArtist, unfollowArtist, checkFollowStatus } from '../../api/social.js'
 import { useCartStore } from '../../stores/cart.js'
 import { useAuthStore } from '../../stores/auth.js'
@@ -108,20 +109,29 @@ const greeting = computed(() => {
   return name ? `Welcome back, ${name.split(' ')[0]}!` : 'Welcome to Kala!'
 })
 
+const fetchFeed = async () => {
+  try {
+    const data = await getCatalogueFeed()
+    const cats = Array.isArray(data) ? data : (data.catalogues || [])
+    recentCatalogues.value = cats.slice(0, 3).map(c => ({
+      ...c,
+      cover_photo_url: c.cover_photo_url ? `http://localhost:5000${c.cover_photo_url}` : ''
+    }))
+  } catch (err) {
+    console.error("Feed error:", err)
+  }
+}
+
 onMounted(async () => {
   await cartStore.loadCart()
   
   // Fetch a handful of live products
   try {
-    const data = await getProducts()
-    featuredProducts.value = (Array.isArray(data) ? data : (data.products || [])).slice(0, 3)
+    featuredProducts.value = await getFeaturedProducts()
   } catch {}
 
-  // Fetch live catalogues
-  try {
-    const data = await getCatalogues({ status: 'live' })
-    recentCatalogues.value = (Array.isArray(data) ? data : (data.catalogues || [])).slice(0, 3)
-  } catch {}
+  // Fetch personalized catalogues (feed)
+  await fetchFeed()
 
   // Fetch Discover Artists
   try {
@@ -134,19 +144,23 @@ onMounted(async () => {
         const { is_following } = await checkFollowStatus(a.id)
         a.isFollowing = is_following
       }
+      if (a.avatar && !a.avatar.startsWith('http')) {
+        a.avatar = `http://localhost:5000${a.avatar}`
+      }
     }
     artistsToFollow.value = all.slice(0, 4)
   } catch {}
 
-  // Fetch Insight Posts
+  // Fetch All Posts (Stories & Insights)
   try {
-    const data = await getPosts({ type: 'insight' })
-    insights.value = data.slice(0, 2).map(p => ({
+    const data = await getPosts()
+    insights.value = data.slice(0, 4).map(p => ({
       id: p.id,
       artist: p.artist_name,
       title: p.title,
+      type: p.type,
       excerpt: p.body.substring(0, 100) + '...',
-      image: p.cover_image_url || 'https://images.unsplash.com/photo-1460662136047-402e1ca4ad37?q=80&w=600'
+      image: p.cover_image_url ? `http://localhost:5000${p.cover_image_url}` : ''
     }))
   } catch {}
 })
@@ -159,6 +173,8 @@ async function toggleFollow(artist) {
     } else {
       await followArtist(artist.id)
       artist.isFollowing = true
+      // Refresh feed when following someone new
+      await fetchFeed()
     }
   } catch (e) {
     alert(e.message)

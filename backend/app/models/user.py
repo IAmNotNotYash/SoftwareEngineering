@@ -37,7 +37,7 @@ class ArtistProfile(db.Model):
     bio = db.Column(db.Text, nullable=True)
     profile_image_url = db.Column(db.String(500), nullable=True)
     cover_image_url = db.Column(db.String(500), nullable=True)
-    verification_status = db.Column(db.Enum('pending', 'approved', 'rejected', name='verification_status_enum'), nullable=False, default='pending')
+    verification_status = db.Column(db.Enum('pending', 'approved', 'rejected', name='verification_status_enum'), nullable=False, default='approved')
     rejection_reason = db.Column(db.String(500), nullable=True)
     verified_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))

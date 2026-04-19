@@ -55,12 +55,20 @@
         </div>
         <div class="artists-grid">
           <div v-for="artist in displayedArtists" :key="artist.id" class="artist-card">
-            <RouterLink :to="`/buyer/artist/${artist.id}`" class="artist-avatar" :style="{ backgroundImage: `url(${artist.avatar})` }"></RouterLink>
+            <RouterLink 
+              :to="`/buyer/artist/${artist.id}`" 
+              class="artist-avatar" 
+              :style="artist.avatar ? { backgroundImage: `url(${artist.avatar})` } : { background: '#fdf2ed' }"
+            >
+              <span v-if="!artist.avatar" class="avatar-placeholder">{{ artist.name.charAt(0) }}</span>
+            </RouterLink>
             <div class="artist-info">
               <RouterLink :to="`/buyer/artist/${artist.id}`" class="artist-name">{{ artist.name }}</RouterLink>
               <div class="artist-meta">{{ artist.category }} • {{ artist.followers }} Followers</div>
             </div>
-            <button class="follow-btn">Follow</button>
+            <button class="follow-btn" @click="handleFollow(artist)">
+              {{ artist.isFollowing ? 'Following' : 'Follow' }}
+            </button>
           </div>
         </div>
         <div v-if="filteredArtists.length === 0" class="no-results">No artists found.</div>
@@ -72,7 +80,12 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import BuyerNavbar from '../../components/BuyerNavbar.vue'
-import { getAllCatalogues, getAllArtists } from '../../api/buyer.js'
+import { getCatalogues } from '../../api/catalogue.js'
+import { getArtists } from '../../api/commerce.js'
+import { followArtist, unfollowArtist, checkFollowStatus } from '../../api/social.js'
+import { useAuthStore } from '../../stores/auth.js'
+
+const authStore = useAuthStore()
 
 const searchQuery = ref('')
 const searchType = ref('all')
@@ -89,8 +102,36 @@ const searchPlaceholder = computed(() => {
 })
 
 onMounted(async () => {
-  catalogues.value = await getAllCatalogues()
-  artists.value = await getAllArtists()
+  const rawCatalogues = await getCatalogues()
+  catalogues.value = rawCatalogues.map(c => ({
+    id: c.id,
+    title: c.title,
+    artist: c.artist_name || 'Independent Artist',
+    date: c.published_at ? new Date(c.published_at).toLocaleDateString() : 'Recently',
+    cover: c.cover_photo_url ? (c.cover_photo_url.startsWith('http') ? c.cover_photo_url : `http://localhost:5000${c.cover_photo_url}`) : ''
+  }))
+
+  const rawArtists = await getArtists()
+  for (let a of rawArtists) {
+    if (authStore.user) {
+      try {
+        const { is_following } = await checkFollowStatus(a.id)
+        a.isFollowing = is_following
+      } catch {
+        a.isFollowing = false
+      }
+    } else {
+      a.isFollowing = false
+    }
+  }
+  artists.value = rawArtists.map(a => ({
+    id: a.id,
+    name: a.name || 'Anonymous Artist',
+    category: a.category || 'Creator',
+    followers: a.followers || 0,
+    avatar: a.avatar ? (a.avatar.startsWith('http') ? a.avatar : `http://localhost:5000${a.avatar}`) : null,
+    isFollowing: a.isFollowing
+  }))
 })
 
 const filteredCatalogues = computed(() => {
@@ -122,6 +163,26 @@ const displayedArtists = computed(() => {
   if (showAllArtists.value || searchQuery.value) return filteredArtists.value
   return filteredArtists.value.slice(0, 4)
 })
+
+async function handleFollow(artist) {
+  if (!authStore.user) {
+    alert("Please log in to follow artists.")
+    return
+  }
+  try {
+    if (artist.isFollowing) {
+      await unfollowArtist(artist.id)
+      artist.isFollowing = false
+      artist.followers--
+    } else {
+      await followArtist(artist.id)
+      artist.isFollowing = true
+      artist.followers++
+    }
+  } catch (err) {
+    alert("Failed to update follow status: " + err.message)
+  }
+}
 </script>
 
 <style scoped>
@@ -344,6 +405,17 @@ const displayedArtists = computed(() => {
   background-position: center;
   margin-bottom: 16px;
   border: 3px solid #fdf2ed;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.avatar-placeholder {
+  font-family: 'Playfair Display', serif;
+  font-size: 32px;
+  font-weight: 700;
+  color: #C4622D;
 }
 
 .artist-info {
