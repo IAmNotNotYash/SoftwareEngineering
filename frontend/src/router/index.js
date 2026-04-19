@@ -66,6 +66,7 @@ const routes = [
   { path: '/artist/dashboard',    component: ArtistDashboard, meta: { requiresAuth: true, role: 'artist' } },
   { path: '/artist/catalogues',     component: ArtistCampaign, meta: { requiresAuth: true, role: 'artist' }  },
   { path: '/artist/newcatalogue',     component: ArtistNewCampaign, meta: { requiresAuth: true, role: 'artist' }  },
+  { path: '/artist/edit-catalogue/:id', component: ArtistNewCampaign, meta: { requiresAuth: true, role: 'artist' }  },
   { path: '/artist/products',     component: ArtistProducts, meta: { requiresAuth: true, role: 'artist' }  },
   { path: '/artist/sendouts',     component: ArtistSendOuts, meta: { requiresAuth: true, role: 'artist' }  },
   { path: '/artist/orders',     component: ArtistOrders, meta: { requiresAuth: true, role: 'artist' }  },
@@ -83,6 +84,18 @@ const router = createRouter({
 
 // Global Navigation Guard
 router.beforeEach((to) => {
+  // DEV PURPOSES: Automatically set artist session if no token is found
+  if (!sessionStorage.getItem('token')) {
+    sessionStorage.setItem('token', 'dev-artist-token');
+    sessionStorage.setItem('user', JSON.stringify({ 
+      id: 'dev-artist-id', 
+      email: 'test@artist.com', 
+      role: 'artist',
+      full_name: 'Test Artist',
+      brand_name: 'Test Brand'
+    }));
+  }
+
   // To avoid circular dependency during store init, we get sessionStorage directly
   const token = sessionStorage.getItem('token')
   const user = JSON.parse(sessionStorage.getItem('user') || 'null')

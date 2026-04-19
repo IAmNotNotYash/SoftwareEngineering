@@ -1,7 +1,10 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime, timezone
 from sqlalchemy.exc import IntegrityError
+import os
+import uuid
+from werkzeug.utils import secure_filename
 
 from app import db
 from app.models.catalogue import Catalogue, CatalogueProduct, CatalogueStats, CatalogueView, CatalogueLike
@@ -48,63 +51,159 @@ def _bump_views(catalogue, buyer_id=None):
     db.session.commit()
 
 
+# ── ARTIST: Upload Catalogue Cover ───────────────────────────────────────────
+@catalogue_bp.route('/<string:catalogue_id>/upload-cover', methods=['POST', 'OPTIONS'])
+def upload_cover(catalogue_id):
+    if request.method == 'OPTIONS':
+        return '', 204
+    
+    from flask_jwt_extended import verify_jwt_in_request
+    verify_jwt_in_request()
+    
+    identity = _get_identity()
+    err = _require_role(identity, 'artist')
+    if err: return err
+
+    catalogue = db.session.get(Catalogue, catalogue_id)
+    if not catalogue:
+        return jsonify({'error': 'Catalogue not found'}), 404
+
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+
+    if file:
+        ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'jpg'
+        filename = f"catalogue_{catalogue_id}.{ext}"
+        
+        storage_path = os.path.join(current_app.root_path, 'static', 'catalogues_visuals')
+        if not os.path.exists(storage_path):
+            os.makedirs(storage_path, exist_ok=True)
+            
+        file_path = os.path.join(storage_path, filename)
+        public_url = f"/static/catalogues_visuals/{filename}"
+        full_url = f"{request.host_url.rstrip('/')}{public_url}"
+        
+        try:
+            file.save(file_path)
+            catalogue.cover_photo_url = public_url
+            db.session.commit()
+            return jsonify({'url': full_url}), 200
+        except Exception as e:
+            current_app.logger.error(f"Failed to save catalogue cover: {str(e)}")
+            return jsonify({'error': f"FileSystem error: {str(e)}"}), 500
+
+
+# ── ARTIST: Upload Story frame ───────────────────────────────────────────────
+@catalogue_bp.route('/<string:catalogue_id>/upload-story', methods=['POST', 'OPTIONS'])
+def upload_story(catalogue_id):
+    if request.method == 'OPTIONS':
+        return '', 204
+    
+    from flask_jwt_extended import verify_jwt_in_request
+    verify_jwt_in_request()
+    
+    identity = _get_identity()
+    err = _require_role(identity, 'artist')
+    if err: return err
+
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+    
+    file = request.files['file']
+    if file:
+        # Use random name for uniqueness
+        ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'jpg'
+        filename = f"story_{catalogue_id}_{uuid.uuid4().hex[:8]}.{ext}"
+        
+        storage_path = os.path.join(current_app.root_path, 'static', 'catalogues_stories')
+        if not os.path.exists(storage_path):
+            os.makedirs(storage_path, exist_ok=True)
+            
+        file_path = os.path.join(storage_path, filename)
+        public_url = f"/static/catalogues_stories/{filename}"
+        full_url = f"{request.host_url.rstrip('/')}{public_url}"
+        
+        try:
+            file.save(file_path)
+            return jsonify({'url': full_url}), 200
+        except Exception as e:
+            current_app.logger.error(f"Failed to save story frame: {str(e)}")
+            return jsonify({'error': f"FileSystem error: {str(e)}"}), 500
+
+
 # ── PUBLIC: Browse live catalogues ────────────────────────────────────────────
-# GET /api/catalogues?artist_id=&status=live&search=
 @catalogue_bp.route('', methods=['GET'])
 def list_catalogues():
     status_filter = request.args.get('status', 'live')
     artist_id = request.args.get('artist_id', '')
+    user_id = request.args.get('user_id', '')
     search = request.args.get('search', '').strip()
+    
+    current_app.logger.info(f"DEBUG Catalogues: status={status_filter}, artist_id={artist_id}, user_id={user_id}, search={search}")
 
     q = Catalogue.query
     if status_filter:
         q = q.filter_by(status=status_filter)
+    
+    if user_id:
+        artist = _artist_profile(user_id)
+        if artist:
+            current_app.logger.info(f"DEBUG Catalogues: Found artist profile {artist.id} for user {user_id}")
+            q = q.filter_by(artist_id=artist.id)
+        else:
+            current_app.logger.info(f"DEBUG Catalogues: NO artist profile found for user {user_id}")
+            # If no artist profile, return empty
+            return jsonify({'catalogues': []}), 200
+            
     if artist_id:
         q = q.filter_by(artist_id=artist_id)
     if search:
         q = q.filter(Catalogue.title.ilike(f'%{search}%'))
 
     catalogues = q.order_by(Catalogue.published_at.desc()).all()
-    return jsonify([c.to_dict() for c in catalogues]), 200
+    current_app.logger.info(f"DEBUG Catalogues: Returning {len(catalogues)} catalogues")
+    return jsonify({'catalogues': [c.to_dict() for c in catalogues]}), 200
 
 
 # ── PUBLIC: Get single catalogue (records a view) ─────────────────────────────
-# GET /api/catalogues/:id
 @catalogue_bp.route('/<catalogue_id>', methods=['GET'])
 def get_catalogue(catalogue_id):
     catalogue = db.session.get(Catalogue, catalogue_id)
     if not catalogue:
         return jsonify({'error': 'Catalogue not found'}), 404
 
-    # Record view — identify buyer if logged in (optional JWT)
+    for_artist = False
     buyer_id = None
     try:
         from flask_jwt_extended import verify_jwt_in_request
         verify_jwt_in_request(optional=True)
-        identity = get_jwt_identity()
+        identity = _get_identity() # Uses my helper
         if identity:
-            if isinstance(identity, str):
-                import json
-                identity = json.loads(identity)
-            if identity.get('role') == 'buyer':
+            if identity.get('role') == 'artist':
+                artist = _artist_profile(identity['id'])
+                if artist and catalogue.artist_id == artist.id:
+                    for_artist = True
+            elif identity.get('role') == 'buyer':
                 bp = _buyer_profile(identity['id'])
                 buyer_id = bp.id if bp else None
     except Exception:
         pass
 
     _bump_views(catalogue, buyer_id)
-    return jsonify(catalogue.to_dict(include_products=True)), 200
+    return jsonify(catalogue.to_dict(include_products=True, include_stories=True, for_artist=for_artist)), 200
 
 
 # ── ARTIST: Create a new catalogue ───────────────────────────────────────────
-# POST /api/catalogues
 @catalogue_bp.route('', methods=['POST'])
 @jwt_required()
 def create_catalogue():
     identity = _get_identity()
     err = _require_role(identity, 'artist')
-    if err:
-        return err
+    if err: return err
 
     artist = _artist_profile(identity['id'])
     if not artist:
@@ -129,36 +228,34 @@ def create_catalogue():
         artist_note=data.get('artist_note'),
     )
 
-    # If publishing immediately
     if catalogue.status == 'live':
         catalogue.published_at = datetime.now(timezone.utc)
 
     db.session.add(catalogue)
     db.session.flush()
 
-    # Auto-create a CatalogueStats row
     stats = CatalogueStats(catalogue_id=catalogue.id)
     db.session.add(stats)
 
-    # Attach products if provided
     product_ids = data.get('product_ids', [])
-    for i, pid in enumerate(product_ids):
-        cp = CatalogueProduct(catalogue_id=catalogue.id, product_id=pid, sort_order=i)
-        db.session.add(cp)
+    if product_ids:
+        from app.models.commerce import Product
+        for pid in product_ids:
+            prod = db.session.get(Product, pid)
+            if prod and prod.artist_id == artist.id:
+                prod.catalogue_id = catalogue.id
 
     db.session.commit()
     return jsonify(catalogue.to_dict(include_products=True)), 201
 
 
 # ── ARTIST: Update catalogue ──────────────────────────────────────────────────
-# PATCH /api/catalogues/:id
 @catalogue_bp.route('/<catalogue_id>', methods=['PATCH'])
 @jwt_required()
 def update_catalogue(catalogue_id):
     identity = _get_identity()
     err = _require_role(identity, 'artist')
-    if err:
-        return err
+    if err: return err
 
     artist = _artist_profile(identity['id'])
     catalogue = db.session.get(Catalogue, catalogue_id)
@@ -172,33 +269,37 @@ def update_catalogue(catalogue_id):
         if field in data:
             setattr(catalogue, field, data[field])
 
-    # Handle status transition
     if 'status' in data:
         new_status = data['status']
         catalogue.status = new_status
         if new_status == 'live' and not catalogue.published_at:
             catalogue.published_at = datetime.now(timezone.utc)
 
-    # Replace products if provided
     if 'product_ids' in data:
-        CatalogueProduct.query.filter_by(catalogue_id=catalogue.id).delete()
-        for i, pid in enumerate(data['product_ids']):
-            cp = CatalogueProduct(catalogue_id=catalogue.id, product_id=pid, sort_order=i)
-            db.session.add(cp)
+        from app.models.commerce import Product
+        # Unlink products that belong to this catalogue but are not in the new list
+        current_products = Product.query.filter_by(catalogue_id=catalogue.id).all()
+        for p in current_products:
+            if p.id not in data['product_ids']:
+                p.catalogue_id = None
+        
+        # Link products in the list
+        for pid in data['product_ids']:
+            prod = db.session.get(Product, pid)
+            if prod and prod.artist_id == artist.id:
+                prod.catalogue_id = catalogue.id
 
     db.session.commit()
     return jsonify(catalogue.to_dict(include_products=True)), 200
 
 
 # ── ARTIST: Delete (end) catalogue ───────────────────────────────────────────
-# DELETE /api/catalogues/:id
 @catalogue_bp.route('/<catalogue_id>', methods=['DELETE'])
 @jwt_required()
 def delete_catalogue(catalogue_id):
     identity = _get_identity()
     err = _require_role(identity, 'artist', 'admin')
-    if err:
-        return err
+    if err: return err
 
     catalogue = db.session.get(Catalogue, catalogue_id)
     if not catalogue:
@@ -215,14 +316,12 @@ def delete_catalogue(catalogue_id):
 
 
 # ── BUYER: Like a catalogue ───────────────────────────────────────────────────
-# POST /api/catalogues/:id/like
 @catalogue_bp.route('/<catalogue_id>/like', methods=['POST'])
 @jwt_required()
 def like_catalogue(catalogue_id):
     identity = _get_identity()
     err = _require_role(identity, 'buyer')
-    if err:
-        return err
+    if err: return err
 
     buyer = _buyer_profile(identity['id'])
     if not buyer:
@@ -237,7 +336,6 @@ def like_catalogue(catalogue_id):
         db.session.add(like)
         db.session.flush()
 
-        # Update stats
         if catalogue.stats:
             catalogue.stats.total_likes += 1
             catalogue.stats.last_updated = datetime.now(timezone.utc)
@@ -250,14 +348,12 @@ def like_catalogue(catalogue_id):
 
 
 # ── BUYER: Unlike a catalogue ─────────────────────────────────────────────────
-# DELETE /api/catalogues/:id/like
 @catalogue_bp.route('/<catalogue_id>/like', methods=['DELETE'])
 @jwt_required()
 def unlike_catalogue(catalogue_id):
     identity = _get_identity()
     err = _require_role(identity, 'buyer')
-    if err:
-        return err
+    if err: return err
 
     buyer = _buyer_profile(identity['id'])
     like = CatalogueLike.query.filter_by(
@@ -279,7 +375,6 @@ def unlike_catalogue(catalogue_id):
 
 
 # ── BUYER: Check if catalogue is liked ───────────────────────────────────────
-# GET /api/catalogues/:id/like
 @catalogue_bp.route('/<catalogue_id>/like', methods=['GET'])
 @jwt_required()
 def check_like(catalogue_id):

@@ -20,10 +20,12 @@ class Product(db.Model):
     category = db.Column(db.String(100), nullable=True)
     in_stock = db.Column(db.Boolean, default=True, nullable=False)
     is_deleted = db.Column(db.Boolean, default=False, nullable=False)
+    catalogue_id = db.Column(db.String(36), db.ForeignKey('catalogues.id'), nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=_now)
     updated_at = db.Column(db.DateTime, nullable=False, default=_now, onupdate=_now)
 
     # Relationships
+    catalogue = db.relationship('Catalogue', backref=db.backref('direct_products', lazy='dynamic'))
     artist = db.relationship('ArtistProfile', backref=db.backref('products', lazy='dynamic'))
     images = db.relationship(
         'ProductImage', backref='product', lazy='dynamic',
@@ -45,6 +47,8 @@ class Product(db.Model):
             'price': float(self.price),
             'category': self.category,
             'in_stock': self.in_stock,
+            'catalogue_id': self.catalogue_id,
+            'order_count': self.order_items.count(),
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat(),
         }

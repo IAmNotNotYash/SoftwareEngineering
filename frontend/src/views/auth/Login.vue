@@ -21,6 +21,17 @@
             <strong>password123</strong>
           </div>
         </div>
+        <div class="showcase-card">
+          <div class="showcase-label">Demo Access</div>
+          <div class="credential-row">
+            <span>Email</span>
+            <strong>seller@example.com</strong>
+          </div>
+          <div class="credential-row">
+            <span>Password</span>
+            <strong>password123</strong>
+          </div>
+        </div>
       </section>
 
       <section class="auth-panel">
