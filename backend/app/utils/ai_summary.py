@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+from urllib import error, request
 from typing import Any
 
 
@@ -101,10 +103,17 @@ def build_platform_fallback(metrics: dict[str, Any]) -> str:
         direction = "up" if growth >= 0 else "down"
         trend_line = f" Latest month revenue is {direction} {abs(growth):.1f}% from the previous month."
 
+    if total_orders == 0:
+        return (
+            f"You’re all set for launch with {registered_artists} artist account(s) and {registered_buyers} buyer account(s) onboarded. "
+            f"Revenue is currently ₹{total_revenue:,.0f}, and orders are yet to begin.{trend_line} "
+            "Next best move: run your first campaign drop and track conversion in this panel."
+        )
+
     return (
-        f"The platform has processed ₹{total_revenue:,.0f} across {total_orders} orders with "
-        f"{registered_artists} registered artists and {registered_buyers} buyers.{trend_line} "
-        "Focus on top-performing categories and smoother order fulfilment to sustain growth."
+        f"Momentum check: the platform has processed ₹{total_revenue:,.0f} across {total_orders} orders, "
+        f"with {registered_artists} artists and {registered_buyers} buyers active.{trend_line} "
+        "Keep leaning into top-performing categories and tighten fulfilment speed to sustain the pace."
     )
 
 
@@ -138,6 +147,45 @@ def _call_gemini(prompt: str, api_key: str, model: str) -> str | None:
         return None
 
 
+def _call_groq(prompt: str, api_key: str, model: str) -> str | None:
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "user", "content": prompt},
+        ],
+        "temperature": 0.35,
+        "max_tokens": 260,
+    }
+    req = request.Request(
+        "https://api.groq.com/openai/v1/chat/completions",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with request.urlopen(req, timeout=20) as resp:
+            body = resp.read().decode("utf-8")
+            data = json.loads(body)
+            choices = data.get("choices", [])
+            if not choices:
+                return None
+            message = choices[0].get("message", {})
+            content = message.get("content")
+            return content.strip() if isinstance(content, str) else None
+    except (error.URLError, error.HTTPError, TimeoutError, ValueError, KeyError):
+        return None
+
+
+def _call_model(prompt: str, provider: str, api_key: str, model: str) -> str | None:
+    normalized = (provider or "").strip().lower()
+    if normalized == "groq":
+        return _call_groq(prompt, api_key, model)
+    return _call_gemini(prompt, api_key, model)
+
+
 def _format_review_block(review_texts: list[str], max_items: int = 12) -> str:
     if not review_texts:
         return "No review text available."
@@ -150,6 +198,7 @@ def generate_artist_summaries(
     metrics: dict[str, Any],
     review_texts: list[str],
     *,
+    provider: str = "groq",
     api_key: str | None,
     model: str,
 ) -> tuple[str, str]:
@@ -176,8 +225,8 @@ def generate_artist_summaries(
         f"{_format_review_block(review_texts)}\n"
     )
 
-    perf_ai = _call_gemini(perf_prompt, api_key, model)
-    sentiment_ai = _call_gemini(sentiment_prompt, api_key, model)
+    perf_ai = _call_model(perf_prompt, provider, api_key, model)
+    sentiment_ai = _call_model(sentiment_prompt, provider, api_key, model)
 
     return perf_ai or fallback_summary, sentiment_ai or fallback_sentiment
 
@@ -185,6 +234,7 @@ def generate_artist_summaries(
 def generate_platform_summary(
     metrics: dict[str, Any],
     *,
+    provider: str = "groq",
     api_key: str | None,
     model: str,
 ) -> str:
@@ -197,11 +247,12 @@ def generate_platform_summary(
         "Rules:\n"
         "1) Keep it between 90 and 140 words.\n"
         "2) Mention growth signal(s), risk/attention area, and one action recommendation.\n"
-        "3) Do not invent numbers.\n\n"
+        "3) Keep tone energetic but professional.\n"
+        "4) Do not invent numbers.\n\n"
         f"Metrics JSON:\n{metrics}\n"
     )
 
-    ai_text = _call_gemini(prompt, api_key, model)
+    ai_text = _call_model(prompt, provider, api_key, model)
     return ai_text or fallback
 
 
@@ -227,6 +278,7 @@ def generate_review_summary(
     metrics: dict[str, Any],
     review_texts: list[str],
     target_label: str,
+    provider: str = "groq",
     api_key: str | None,
     model: str,
 ) -> str:
@@ -245,5 +297,5 @@ def generate_review_summary(
         f"{_format_review_block(review_texts)}\n"
     )
 
-    ai_text = _call_gemini(prompt, api_key, model)
+    ai_text = _call_model(prompt, provider, api_key, model)
     return ai_text or fallback

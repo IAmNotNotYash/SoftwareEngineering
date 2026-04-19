@@ -27,11 +27,36 @@ def _utc_now():
     return datetime.now(timezone.utc)
 
 
+def _as_utc(dt):
+    if dt is None:
+        return None
+    # Some DB backends return naive datetimes for DateTime columns.
+    # Treat them as UTC so stale checks don't crash on aware-vs-naive comparison.
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+def _ai_runtime():
+    provider = (current_app.config.get("AI_PROVIDER", "groq") or "groq").lower()
+    if provider == "groq":
+        return (
+            provider,
+            current_app.config.get("GROQ_API_KEY"),
+            current_app.config.get("GROQ_MODEL", "llama-3.1-8b-instant"),
+        )
+    return (
+        "gemini",
+        current_app.config.get("GEMINI_API_KEY"),
+        current_app.config.get("GEMINI_MODEL", "gemini-2.0-flash"),
+    )
+
+
 def _is_stale(snapshot):
     ttl_hours = int(current_app.config.get("AI_SNAPSHOT_TTL_HOURS", 12))
     if not snapshot:
         return True
-    generated_at = snapshot.generated_at or _utc_now()
+    generated_at = _as_utc(snapshot.generated_at) or _utc_now()
     return generated_at < (_utc_now() - timedelta(hours=ttl_hours))
 
 
@@ -122,11 +147,13 @@ def _platform_metrics():
 
 def _create_artist_snapshot(artist_id):
     metrics, review_texts = _artist_metrics(artist_id)
+    provider, api_key, model = _ai_runtime()
     ai_summary, sentiment_summary = generate_artist_summaries(
         metrics,
         review_texts,
-        api_key=current_app.config.get("GEMINI_API_KEY"),
-        model=current_app.config.get("GEMINI_MODEL", "gemini-2.0-flash"),
+        provider=provider,
+        api_key=api_key,
+        model=model,
     )
     period = metrics["recent_months"][-1]["month"] if metrics["recent_months"] else "all-time"
 
@@ -146,10 +173,12 @@ def _create_artist_snapshot(artist_id):
 
 def _create_platform_snapshot():
     metrics = _platform_metrics()
+    provider, api_key, model = _ai_runtime()
     ai_summary = generate_platform_summary(
         metrics,
-        api_key=current_app.config.get("GEMINI_API_KEY"),
-        model=current_app.config.get("GEMINI_MODEL", "gemini-2.0-flash"),
+        provider=provider,
+        api_key=api_key,
+        model=model,
     )
     period = metrics["recent_months"][-1]["month"] if metrics["recent_months"] else "all-time"
 

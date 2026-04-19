@@ -9,6 +9,9 @@ class Config:
     JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "fallback-jwt-secret")
     SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    AI_PROVIDER = os.environ.get("AI_PROVIDER", "groq")
+    GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
+    GROQ_MODEL = os.environ.get("GROQ_MODEL", "llama-3.1-8b-instant")
     GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
     GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
     AI_SNAPSHOT_TTL_HOURS = int(os.environ.get("AI_SNAPSHOT_TTL_HOURS", "12"))

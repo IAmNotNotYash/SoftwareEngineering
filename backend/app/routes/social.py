@@ -190,12 +190,22 @@ def get_review_summary(target_type, target_id):
         }
     }
 
+    provider = (current_app.config.get('AI_PROVIDER', 'groq') or 'groq').lower()
+    if provider == 'groq':
+        api_key = current_app.config.get('GROQ_API_KEY')
+        model = current_app.config.get('GROQ_MODEL', 'llama-3.1-8b-instant')
+    else:
+        provider = 'gemini'
+        api_key = current_app.config.get('GEMINI_API_KEY')
+        model = current_app.config.get('GEMINI_MODEL', 'gemini-2.0-flash')
+
     summary = generate_review_summary(
         metrics=metrics,
         review_texts=review_texts,
         target_label=target_type,
-        api_key=current_app.config.get('GEMINI_API_KEY'),
-        model=current_app.config.get('GEMINI_MODEL', 'gemini-2.0-flash')
+        provider=provider,
+        api_key=api_key,
+        model=model,
     )
 
     return jsonify({
