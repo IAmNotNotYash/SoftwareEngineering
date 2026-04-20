@@ -28,3 +28,17 @@ htmlcov/
 *.env
 *.env.*
 !.env.example
+
+# Uploads
+backend/app/static/product_image/*
+backend/app/static/post_image/*
+backend/app/static/catalogue_cover/*
+backend/app/static/avatars/*
+backend/app/static/catalogues_stories/*
+backend/app/static/catalogues_visuals/*
+!backend/app/static/product_image/.gitkeep
+!backend/app/static/post_image/.gitkeep
+!backend/app/static/catalogue_cover/.gitkeep
+!backend/app/static/avatars/.gitkeep
+!backend/app/static/catalogues_stories/.gitkeep
+!backend/app/static/catalogues_visuals/.gitkeep

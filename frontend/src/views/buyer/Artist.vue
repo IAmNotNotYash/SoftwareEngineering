@@ -13,7 +13,12 @@
 
       <div class="page-container">
         <div class="profile-header">
-          <div class="profile-avatar" :style="{ backgroundImage: `url(${artist.profileImage})` }"></div>
+          <div 
+            class="profile-avatar" 
+            :style="artist.profileImage ? { backgroundImage: `url(${artist.profileImage})` } : { background: '#fdf2ed' }"
+          >
+            <span v-if="!artist.profileImage" class="avatar-placeholder">{{ artist.name.charAt(0) }}</span>
+          </div>
           <div class="profile-info">
             <h1 class="artist-name">{{ artist.name }}</h1>
             <div class="artist-meta">
@@ -76,6 +81,24 @@
             </div>
           </div>
         </div>
+
+        <div class="divider" v-if="stories.length > 0"></div>
+
+        <!-- Artist's Stories/Insights -->
+        <div class="stories-feed-section" v-if="stories.length > 0">
+          <h2>Behind the Craft</h2>
+          <div class="stories-feed-grid">
+            <div v-for="story in stories" :key="story.id" class="story-feed-card">
+              <div class="story-feed-image" v-if="story.image" :style="{ backgroundImage: `url(${story.image})` }"></div>
+              <div class="story-feed-content">
+                <div class="story-feed-type">{{ story.type === 'insight' ? 'Insight' : 'Story' }}</div>
+                <h3>{{ story.title }}</h3>
+                <p>{{ story.excerpt }}</p>
+                <RouterLink :to="`/buyer/insight/${story.id}`" class="read-story-link">Read More</RouterLink>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -86,18 +109,33 @@ import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import BuyerNavbar from '../../components/BuyerNavbar.vue'
 import { getArtistDetails } from '../../api/buyer.js'
-import { followArtist, unfollowArtist, checkFollowStatus } from '../../api/social.js'
+import { followArtist, unfollowArtist, checkFollowStatus, getPosts } from '../../api/social.js'
 import { useCartStore } from '../../stores/cart.js'
 
 const cartStore = useCartStore()
 
 const route = useRoute()
 const artist = ref(null)
+const stories = ref([])
 const isFollowing = ref(false)
 
 onMounted(async () => {
   const id = route.params.id || '1'
   artist.value = await getArtistDetails(id)
+  
+  // Fetch artist's stories
+  try {
+    const posts = await getPosts({ artist_id: id })
+    stories.value = posts.map(p => ({
+      id: p.id,
+      title: p.title,
+      type: p.type,
+      excerpt: p.body.substring(0, 150) + '...',
+      image: p.cover_image_url
+    }))
+  } catch (e) {
+    console.error('Failed to fetch stories:', e)
+  }
   
   // Check if current user is following this artist
   try {
@@ -114,9 +152,11 @@ const toggleFollow = async () => {
     if (isFollowing.value) {
       await unfollowArtist(artistId)
       isFollowing.value = false
+      artist.value.followers = Math.max(0, (artist.value.followers || 0) - 1)
     } else {
       await followArtist(artistId)
       isFollowing.value = true
+      artist.value.followers = (artist.value.followers || 0) + 1
     }
   } catch (e) {
     alert('Action failed: ' + e.message)
@@ -173,6 +213,16 @@ const toggleFollow = async () => {
   background-position: center;
   box-shadow: 0 4px 12px rgba(0,0,0,0.1);
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avatar-placeholder {
+  font-family: 'Playfair Display', serif;
+  font-size: 64px;
+  font-weight: 700;
+  color: #C4622D;
 }
 
 .profile-info {
@@ -421,5 +471,82 @@ const toggleFollow = async () => {
 .add-cart-btn:hover {
   border-color: var(--color-primary);
   color: var(--color-primary);
+}
+
+/* Stories Feed Styles */
+.stories-feed-section {
+  margin-top: 60px;
+}
+
+.stories-feed-section h2 {
+  font-family: 'Playfair Display', serif;
+  font-size: 28px;
+  color: #000;
+  margin-bottom: 32px;
+}
+
+.stories-feed-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 32px;
+}
+
+.story-feed-card {
+  background: white;
+  border: 1px solid #e8e0d8;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: transform 0.3s ease;
+}
+
+.story-feed-card:hover {
+  transform: translateY(-5px);
+}
+
+.story-feed-image {
+  height: 200px;
+  background-size: cover;
+  background-position: center;
+}
+
+.story-feed-content {
+  padding: 24px;
+}
+
+.story-feed-type {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #C4622D;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.story-feed-content h3 {
+  font-family: 'Playfair Display', serif;
+  font-size: 20px;
+  margin: 0 0 12px 0;
+  color: #000;
+}
+
+.story-feed-content p {
+  font-size: 14px;
+  color: #666;
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+
+.read-story-link {
+  font-size: 13px;
+  font-weight: 600;
+  color: #000;
+  text-decoration: none;
+  border-bottom: 2px solid #C4622D;
+  padding-bottom: 2px;
+  transition: color 0.2s;
+}
+
+.read-story-link:hover {
+  color: #C4622D;
 }
 </style>

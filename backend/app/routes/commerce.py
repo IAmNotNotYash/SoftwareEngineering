@@ -32,6 +32,8 @@ from app.models.commerce import (
     OrderItem,
     OrderTrackingEvent,
 )
+from app.utils.analytics import update_revenue_analytics
+
 
 commerce_bp = Blueprint('commerce', __name__)
 
@@ -837,6 +839,11 @@ def update_order_status(order_id):
     if event_name:
         event = OrderTrackingEvent(order_id=order.id, event=event_name, note=note)
         db.session.add(event)
+
+    # Update analytics if order is delivered
+    if new_status == 'delivered':
+        update_revenue_analytics(order)
+
 
     db.session.commit()
     return jsonify(order.to_dict(include_items=True, include_tracking=True)), 200

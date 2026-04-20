@@ -9,6 +9,10 @@ from app.models.catalogue import Catalogue
 from app.utils.ai_summary import generate_review_summary
 
 social_bp = Blueprint('social', __name__)
+import os
+import uuid
+from flask import current_app
+
 
 import json
 
@@ -18,6 +22,37 @@ def _get_identity():
         return json.loads(id_str) if isinstance(id_str, str) else id_str
     except (json.JSONDecodeError, TypeError):
         return id_str
+
+@social_bp.route('/upload-image', methods=['POST', 'OPTIONS'])
+def upload_image():
+    if request.method == 'OPTIONS':
+        return '', 204
+        
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+        
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+
+    if file:
+        ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'jpg'
+        filename = f"post_{uuid.uuid4().hex[:12]}.{ext}"
+        
+        storage_path = os.path.join(current_app.root_path, 'static', 'post_image')
+        if not os.path.exists(storage_path):
+            os.makedirs(storage_path, exist_ok=True)
+            
+        file_path = os.path.join(storage_path, filename)
+        public_url = f"/static/post_image/{filename}"
+        
+        try:
+            file.save(file_path)
+            return jsonify({'url': f"{request.host_url.rstrip('/')}{public_url}"}), 200
+        except Exception as e:
+            return jsonify({'error': f"FileSystem error: {str(e)}"}), 500
+    
+    return jsonify({'error': 'Upload failed'}), 500
 
 # ── FOLLOWS ──────────────────────────────────────────────────────────────────
 
@@ -83,6 +118,32 @@ def list_following():
     artists = [f.artist.to_dict() for f in follows if f.artist]
     return jsonify(artists), 200
 
+@social_bp.route('/followers', methods=['GET'])
+@jwt_required()
+def list_followers():
+    identity = _get_identity()
+    if identity['role'] != 'artist':
+        return jsonify({'error': 'Only artists can view their followers'}), 403
+    
+    artist = ArtistProfile.query.filter_by(user_id=identity['id']).first()
+    if not artist:
+        return jsonify({'error': 'Artist profile not found'}), 404
+        
+    follows = Follow.query.filter_by(artist_id=artist.id).all()
+    # Return buyer info for each follower
+    followers = []
+    for f in follows:
+        if f.buyer:
+            followers.append({
+                'id': f.buyer_id,
+                'name': f.buyer.full_name,
+                'joined': f.created_at.strftime('%Y-%m-%d'),
+                'type': 'Follower', # Placeholder for tiers
+                'orders': 0, # Placeholder
+                'value': '₹0' # Placeholder
+            })
+    return jsonify(followers), 200
+
 # ── POSTS (STORIES & INSIGHTS) ────────────────────────────────────────────────
 
 @social_bp.route('/posts', methods=['GET'])
@@ -92,7 +153,19 @@ def list_posts():
     artist_id = request.args.get('artist_id')
     catalogue_id = request.args.get('catalogue_id')
     
-    query = Post.query.filter_by(is_published=True)
+    # Determine if we should show unpublished posts
+    show_unpublished = False
+    identity = _get_identity()
+    if identity and identity['role'] == 'artist':
+        artist = ArtistProfile.query.filter_by(user_id=identity['id']).first()
+        if artist and (not artist_id or artist_id == artist.id):
+            show_unpublished = True
+
+    if show_unpublished:
+        query = Post.query
+    else:
+        query = Post.query.filter_by(is_published=True)
+
     if post_type:
         query = query.filter_by(type=post_type)
     if artist_id:

@@ -77,7 +77,8 @@
         </div>
         <div v-else class="artist-list">
           <div v-for="artist in followedArtists" :key="artist.id" class="artist-chip">
-            <img :src="artist.profile_image_url || 'https://via.placeholder.com/40'" alt="Avatar" />
+            <img v-if="artist.profile_image_url" :src="getImageUrl(artist.profile_image_url)" alt="Avatar" />
+            <div v-else class="avatar-placeholder small">{{ (artist.full_name || artist.name || 'A').charAt(0) }}</div>
             <div class="artist-info">
               <span class="artist-name">{{ artist.full_name || artist.name }}</span>
               <span class="artist-tagline">{{ artist.location || 'Artisan' }}</span>
@@ -208,6 +209,11 @@ const joinDateStr = computed(() => {
   if (!user.value?.created_at) return 'Recently'
   return new Date(user.value.created_at).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })
 })
+
+const getImageUrl = (url) => {
+  if (!url) return ''
+  return url.startsWith('http') ? url : `http://localhost:5000${url}`
+}
 </script>
 
 <style scoped>

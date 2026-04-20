@@ -107,7 +107,7 @@ onMounted(async () => {
     stats.value.totalRevenue = `₹${totalRev.toLocaleString('en-IN')}`
     stats.value.totalOrders = trendData.reduce((a, b) => a + (b.orders || 0), 0)
     stats.value.catalogueViews = stats.value.viewsTrend.reduce((a, b) => a + b, 0)
-    stats.value.storyEngagement = '8.4%' // Mocked for now
+    stats.value.storyEngagement = '0%' // Real calculation pending activity
 
     // Fetch AI Snapshot
     aiSummary.value = await getAnalyticsSnapshot('artist')
