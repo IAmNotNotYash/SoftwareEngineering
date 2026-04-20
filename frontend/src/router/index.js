@@ -92,9 +92,7 @@ router.beforeEach((to) => {
       email: 'test@artist.com', 
       role: 'artist',
       full_name: 'Test Artist',
-      brand_name: 'Test Brand',
-      artistId: 'dev-artist-id',
-      buyerId: 'dev-buyer-id'
+      brand_name: 'Test Brand'
     }));
   }
 

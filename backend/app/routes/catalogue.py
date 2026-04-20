@@ -166,7 +166,8 @@ def list_catalogues():
         q = q.filter(Catalogue.title.ilike(f'%{search}%'))
 
     catalogues = q.order_by(Catalogue.published_at.desc()).all()
-    return jsonify([c.to_dict() for c in catalogues]), 200
+    current_app.logger.info(f"DEBUG Catalogues: Returning {len(catalogues)} catalogues")
+    return jsonify({'catalogues': [c.to_dict() for c in catalogues]}), 200
 
 
 # ── BUYER: Personalized Feed ──────────────────────────────────────────────────

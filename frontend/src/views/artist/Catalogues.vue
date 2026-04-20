@@ -50,33 +50,6 @@
         <p>You haven't created any catalogues yet.</p>
         <router-link to="/artist/newcatalogue" class="btn primary-btn">Create Your First Catalogue</router-link>
       </div>
-
-      <!-- Stories Management Section -->
-      <div class="stories-mgmt-section" v-if="!loading">
-        <div class="section-header">
-          <h2 class="section-title">Your Stories & Insights</h2>
-          <router-link to="/artist/story" class="btn secondary-btn">+ New Story</router-link>
-        </div>
-        
-        <div class="stories-mgmt-grid" v-if="stories.length > 0">
-          <div class="story-mgmt-card" v-for="s in stories" :key="s.id">
-            <div class="story-mgmt-img" :style="{ backgroundImage: `url(${getImageUrl(s.cover_image_url)})` }"></div>
-            <div class="story-mgmt-info">
-              <div class="story-mgmt-meta">
-                <span class="type-badge">{{ s.type }}</span>
-                <span class="date">{{ new Date(s.created_at).toLocaleDateString() }}</span>
-              </div>
-              <h4 class="story-mgmt-title">{{ s.title }}</h4>
-              <div class="story-mgmt-actions">
-                <button class="text-btn danger" @click="handleDeletePost(s.id)">Delete</button>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="empty-mgmt-state" v-else>
-          <p>Shared your process or inspiration recently? Write a story to engage your audience.</p>
-        </div>
-      </div>
     </main>
   </div>
 </template>
@@ -85,12 +58,10 @@
 import { ref, onMounted } from 'vue'
 import ArtistNavbar from '../../components/ArtistNavbar.vue'
 import { getCatalogues } from '../../api/catalogue'
-import { getPosts, deletePost } from '../../api/social'
 import { useAuthStore } from '../../stores/auth'
 
 const authStore = useAuthStore()
 const catalogues = ref([])
-const stories = ref([])
 const loading = ref(true)
 
 const fetchCatalogues = async () => {
@@ -99,37 +70,19 @@ const fetchCatalogues = async () => {
     if (!user_id) return
     
     // Fetch all statuses for the artist: live, draft, ended
-    const [resLive, resDraft, resEnded] = await Promise.all([
-      getCatalogues({ status: 'live', user_id }),
-      getCatalogues({ status: 'draft', user_id }),
-      getCatalogues({ status: 'ended', user_id })
-    ])
+    const resLive = await getCatalogues({ status: 'live', user_id })
+    const resDraft = await getCatalogues({ status: 'draft', user_id })
+    const resEnded = await getCatalogues({ status: 'ended', user_id })
     
     catalogues.value = [
-      ...(Array.isArray(resLive) ? resLive : (resLive.catalogues || [])),
-      ...(Array.isArray(resDraft) ? resDraft : (resDraft.catalogues || [])),
-      ...(Array.isArray(resEnded) ? resEnded : (resEnded.catalogues || []))
+      ...resLive.catalogues,
+      ...resDraft.catalogues,
+      ...resEnded.catalogues
     ]
-
-    // Fetch Stories specifically for this artist
-    const artistId = authStore.user?.artistId
-    if (artistId) {
-      stories.value = await getPosts({ artist_id: artistId })
-    }
   } catch (err) {
     console.error("Failed to fetch catalogues:", err)
   } finally {
     loading.value = false
-  }
-}
-
-const handleDeletePost = async (id) => {
-  if (!confirm("Are you sure you want to delete this story?")) return
-  try {
-    await deletePost(id)
-    stories.value = stories.value.filter(s => s.id !== id)
-  } catch (err) {
-    alert(err.message)
   }
 }
 
@@ -142,7 +95,7 @@ const formatPrice = (val) => {
 }
 
 const getImageUrl = (url) => {
-  if (!url) return '' // Remove placeholder
+  if (!url) return 'https://images.unsplash.com/photo-1544816155-12df9643f363?w=800'
   if (url.startsWith('http')) return url
   return `http://localhost:5000${url}`
 }
@@ -336,93 +289,6 @@ const getImageUrl = (url) => {
 .stat-icon {
   font-size: 16px;
   opacity: 0.8;
-}
-
-/* Stories Mgmt Styles */
-.stories-mgmt-section {
-  margin-top: 80px;
-}
-
-.stories-mgmt-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 24px;
-}
-
-.story-mgmt-card {
-  background: white;
-  border: 1px solid #e8e0d8;
-  border-radius: 12px;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-.story-mgmt-img {
-  height: 140px;
-  background-size: cover;
-  background-position: center;
-}
-
-.story-mgmt-info {
-  padding: 16px;
-}
-
-.story-mgmt-meta {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-
-.type-badge {
-  font-size: 10px;
-  text-transform: uppercase;
-  font-weight: 700;
-  color: #C4622D;
-  background: #fdf2ed;
-  padding: 2px 8px;
-  border-radius: 4px;
-}
-
-.date {
-  font-size: 11px;
-  color: #888;
-}
-
-.story-mgmt-title {
-  font-size: 16px;
-  font-weight: 600;
-  margin: 0 0 12px 0;
-  line-height: 1.4;
-  height: 44px;
-  overflow: hidden;
-}
-
-.story-mgmt-actions {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.text-btn {
-  background: none;
-  border: none;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 4px 0;
-}
-
-.danger {
-  color: #dc2626;
-}
-
-.empty-mgmt-state {
-  padding: 40px;
-  background: #fdfaf8;
-  border-radius: 12px;
-  text-align: center;
-  color: #888;
-  font-size: 14px;
 }
 </style>
 .loading-state, .empty-state {

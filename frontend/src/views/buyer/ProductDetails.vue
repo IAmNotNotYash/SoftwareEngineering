@@ -84,6 +84,17 @@
               </div>
             </div>
 
+            <div class="review-summary-card" v-if="reviewSummary">
+              <div class="summary-header">
+                <h4>Review Summary</h4>
+                <span v-if="reviewSummary.avg_rating !== null && reviewSummary.avg_rating !== undefined">
+                  {{ reviewSummary.avg_rating.toFixed(1) }}★ · {{ reviewSummary.review_count }} reviews
+                </span>
+                <span v-else>{{ reviewSummary.review_count }} reviews</span>
+              </div>
+              <p>{{ reviewSummary.summary }}</p>
+            </div>
+
             <div class="reviews-list">
               <div v-for="rev in reviews" :key="rev.id" class="review-item">
                 <div class="review-header">
@@ -118,7 +129,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import BuyerNavbar from '../../components/BuyerNavbar.vue'
 import { getProductDetails } from '../../api/buyer.js'
-import { getReviews, createReview } from '../../api/social.js'
+import { getReviews, createReview, getReviewSummary } from '../../api/social.js'
 import { useCartStore } from '../../stores/cart.js'
 import { useAuthStore } from '../../stores/auth.js'
 
@@ -129,6 +140,7 @@ const product = ref(null)
 const activeImage = ref('')
 
 const reviews = ref([])
+const reviewSummary = ref(null)
 const newReviewBody = ref('')
 const newRating = ref(5)
 const submittingReview = ref(false)
@@ -143,6 +155,9 @@ onMounted(async () => {
     // Load reviews
     try {
       reviews.value = await getReviews('product', id)
+    } catch (e) { console.error(e) }
+    try {
+      reviewSummary.value = await getReviewSummary('product', id)
     } catch (e) { console.error(e) }
   }
 })
@@ -173,6 +188,9 @@ async function submitReview() {
     reviews.value.unshift(rev)
     newReviewBody.value = ''
     newRating.value = 5
+    try {
+      reviewSummary.value = await getReviewSummary('product', product.value.id)
+    } catch (e) { console.error(e) }
   } catch (e) {
     alert(e.message)
   } finally {
@@ -437,6 +455,42 @@ async function submitReview() {
   border-radius: 4px;
   font-weight: 600;
   cursor: pointer;
+}
+
+.review-summary-card {
+  background: #fff9f3;
+  border: 1px solid #f1dcc7;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 28px;
+}
+
+.summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.summary-header h4 {
+  margin: 0;
+  font-family: 'Playfair Display', serif;
+  font-size: 18px;
+  color: #2d2a26;
+}
+
+.summary-header span {
+  font-size: 13px;
+  color: #6f6257;
+  font-weight: 600;
+}
+
+.review-summary-card p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.7;
+  color: #4f453d;
 }
 
 .reviews-list {

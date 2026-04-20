@@ -382,6 +382,14 @@ onMounted(async () => {
       if (cat.status) {
         catalogueStatus.value = cat.status
       }
+
+      // Jump to the requested section if specified in the query param
+      // e.g. ?section=products → step index 3
+      const sectionMap = { overview: 0, visuals: 1, stories: 2, products: 3, launch: 4 }
+      const requestedSection = route.query.section
+      if (requestedSection && sectionMap[requestedSection] !== undefined) {
+        currentStep.value = sectionMap[requestedSection]
+      }
     } catch (err) {
       console.error("Failed to load catalogue:", err)
     } finally {

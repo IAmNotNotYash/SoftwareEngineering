@@ -1,5 +1,39 @@
-# Vue 3 + Vite
+## Getting Started
 
-This template should help get you started developing with Vue 3 in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+### Prerequisites
 
-Learn more about IDE Support for Vue in the [Vue Docs Scaling up Guide](https://vuejs.org/guide/scaling-up/tooling.html#ide-support).
+Make sure you have the following installed:
+- Python 3.10+
+- Node.js 18+ and npm
+- PostgreSQL 14+
+- Git
+
+---
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/IAmNotNotYash/SoftwareEngineering.git
+cd SoftwareEngineering
+```
+
+---
+
+### 2. Frontend Setup
+
+```bash
+cd ../frontend
+```
+
+**Install dependencies:**
+```bash
+npm install
+```
+
+**Run the Vue development server:**
+```bash
+npm run dev
+```
+The frontend will be available at `http://localhost:5173`.
+
+> During development the frontend and backend run on separate ports. Vue's dev server proxies API requests to Flask — this is configured in `vite.config.js`.

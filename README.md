@@ -187,6 +187,17 @@ To confirm the new user and database work correctly, run:
 ```bash
 psql -U kala_user -d kala_db -h localhost
 ```
+##### 4d. Restore the database from sql file dump
+
+```
+psql -U kala_user -d kala_db < kala_db.sql
+```
+
+##### 4e. Create a sql dump before making your branch
+
+```
+pg_dump -U kala_user -d kala_db > kala_db.sql
+```
 
 If it opens the psql prompt (`kala_db=>`), your database is set up correctly. Type `\q` to exit.
 

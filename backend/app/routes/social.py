@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, current_app, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime, timezone
 from app import db
@@ -6,6 +6,7 @@ from app.models.social import Follow, Post, Review, PostLike
 from app.models.user import ArtistProfile, BuyerProfile
 from app.models.commerce import Product
 from app.models.catalogue import Catalogue
+from app.utils.ai_summary import generate_review_summary
 
 social_bp = Blueprint('social', __name__)
 import os
@@ -172,7 +173,7 @@ def list_posts():
     if catalogue_id:
         query = query.filter_by(catalogue_id=catalogue_id)
         
-    posts = query.order_by(Post.created_at.desc()).all()
+    posts = query.order_by(Post.published_at.desc()).all()
     
     # Check likes if user is logged in
     identity = _get_identity()
@@ -191,26 +192,6 @@ def list_posts():
         results.append(d)
         
     return jsonify(results), 200
-
-@social_bp.route('/posts/<string:post_id>', methods=['GET'])
-def get_post(post_id):
-    post = Post.query.get_or_404(post_id)
-    if not post.is_published:
-        # Check if caller is the author
-        from flask_jwt_extended import verify_jwt_in_request
-        from flask_jwt_extended import get_jwt_identity
-        try:
-            verify_jwt_in_request(optional=True)
-            identity = _get_identity()
-            if not identity or identity['role'] != 'artist':
-                return jsonify({'error': 'Unauthorized'}), 403
-            artist = ArtistProfile.query.filter_by(user_id=identity['id']).first()
-            if not artist or post.artist_id != artist.id:
-                return jsonify({'error': 'Unauthorized'}), 403
-        except:
-            return jsonify({'error': 'Unauthorized'}), 403
-
-    return jsonify(post.to_dict()), 200
 
 @social_bp.route('/posts/<string:post_id>/like', methods=['POST'])
 @jwt_required()
@@ -335,3 +316,68 @@ def add_review():
 def list_reviews(target_type, target_id):
     reviews = Review.query.filter_by(target_type=target_type, target_id=target_id, is_deleted=False).all()
     return jsonify([r.to_dict() for r in reviews]), 200
+
+
+@social_bp.route('/reviews/<string:target_type>/<string:target_id>/summary', methods=['GET'])
+def get_review_summary(target_type, target_id):
+    if target_type not in ('product', 'catalogue'):
+        return jsonify({'error': "target_type must be 'product' or 'catalogue'"}), 400
+
+    if target_type == 'product':
+        target = Product.query.filter_by(id=target_id, is_deleted=False).first()
+    else:
+        target = Catalogue.query.filter_by(id=target_id).first()
+
+    if not target:
+        return jsonify({'error': f'{target_type.capitalize()} not found'}), 404
+
+    reviews = (
+        Review.query.filter_by(target_type=target_type, target_id=target_id, is_deleted=False)
+        .order_by(Review.created_at.desc())
+        .limit(50)
+        .all()
+    )
+    review_texts = [r.body for r in reviews if r.body and r.body.strip()]
+    ratings = [r.rating for r in reviews if r.rating is not None]
+
+    avg_rating = (sum(ratings) / len(ratings)) if ratings else None
+    metrics = {
+        'target_type': target_type,
+        'target_id': target_id,
+        'review_count': len(reviews),
+        'avg_rating': round(avg_rating, 2) if avg_rating is not None else None,
+        'rating_breakdown': {
+            '5': sum(1 for r in ratings if r == 5),
+            '4': sum(1 for r in ratings if r == 4),
+            '3': sum(1 for r in ratings if r == 3),
+            '2': sum(1 for r in ratings if r == 2),
+            '1': sum(1 for r in ratings if r == 1),
+        }
+    }
+
+    provider = (current_app.config.get('AI_PROVIDER', 'groq') or 'groq').lower()
+    if provider == 'groq':
+        api_key = current_app.config.get('GROQ_API_KEY')
+        model = current_app.config.get('GROQ_MODEL', 'llama-3.1-8b-instant')
+    else:
+        provider = 'gemini'
+        api_key = current_app.config.get('GEMINI_API_KEY')
+        model = current_app.config.get('GEMINI_MODEL', 'gemini-2.0-flash')
+
+    summary = generate_review_summary(
+        metrics=metrics,
+        review_texts=review_texts,
+        target_label=target_type,
+        provider=provider,
+        api_key=api_key,
+        model=model,
+    )
+
+    return jsonify({
+        'target_type': target_type,
+        'target_id': target_id,
+        'review_count': metrics['review_count'],
+        'avg_rating': metrics['avg_rating'],
+        'summary': summary,
+        'generated_at': datetime.now(timezone.utc).isoformat(),
+    }), 200
