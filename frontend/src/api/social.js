@@ -95,32 +95,6 @@ export function unlikePost(post_id) {
   return request(`/posts/${post_id}/like`, { method: 'DELETE' })
 }
 
-export function createPost(payload) {
-  return request('/posts', {
-    method: 'POST',
-    body: JSON.stringify(payload)
-  })
-}
-
-export function updatePost(post_id, payload) {
-  return request(`/posts/${post_id}`, {
-    method: 'PATCH',
-    body: JSON.stringify(payload)
-  })
-}
-
-export function deletePost(post_id) {
-  return request(`/posts/${post_id}`, { method: 'DELETE' })
-}
-
-export function likePost(post_id) {
-  return request(`/posts/${post_id}/like`, { method: 'POST' })
-}
-
-export function unlikePost(post_id) {
-  return request(`/posts/${post_id}/like`, { method: 'DELETE' })
-}
-
 export function createReview(payload) {
   return request('/reviews', {
     method: 'POST',
