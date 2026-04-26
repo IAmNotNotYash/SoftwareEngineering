@@ -136,14 +136,19 @@ def _call_gemini(prompt: str, api_key: str, model: str) -> str | None:
     try:
         import google.generativeai as genai
     except ImportError:
+        print("AI ERROR: google-generativeai package not installed")
         return None
 
     try:
         genai.configure(api_key=api_key)
         llm = genai.GenerativeModel(model)
         response = llm.generate_content(prompt)
-        return _extract_text(response)
-    except Exception:
+        text = _extract_text(response)
+        if not text:
+             print("AI ERROR (Gemini): Empty response from model")
+        return text
+    except Exception as e:
+        print(f"AI ERROR (Gemini): {str(e)}")
         return None
 
 
@@ -162,6 +167,7 @@ def _call_groq(prompt: str, api_key: str, model: str) -> str | None:
         headers={
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) KalaAnalytics/1.0"
         },
         method="POST",
     )
@@ -175,7 +181,8 @@ def _call_groq(prompt: str, api_key: str, model: str) -> str | None:
             message = choices[0].get("message", {})
             content = message.get("content")
             return content.strip() if isinstance(content, str) else None
-    except (error.URLError, error.HTTPError, TimeoutError, ValueError, KeyError):
+    except Exception as e:
+        print(f"AI ERROR (Groq): {str(e)}")
         return None
 
 
@@ -266,10 +273,22 @@ def build_review_fallback(metrics: dict[str, Any], review_texts: list[str]) -> s
         return "No reviews yet for this product. Once buyers start sharing feedback, this summary will highlight recurring praise and issues."
 
     rating_line = f"Average rating is {avg_rating:.1f}/5." if avg_rating is not None else "Rating data is limited."
+    
+    # Basic keyword extraction for a slightly better fallback
+    all_text = " ".join(review_texts).lower()
+    keywords = []
+    if "quality" in all_text or "craft" in all_text: keywords.append("quality")
+    if "fast" in all_text or "quick" in all_text or "delivery" in all_text: keywords.append("service")
+    if "design" in all_text or "style" in all_text or "beautiful" in all_text: keywords.append("design")
+    
+    keyword_str = ""
+    if keywords:
+        keyword_str = f" with specific mention of {', '.join(keywords)}."
+
     return (
-        f"Based on {review_count} buyer reviews, sentiment is {label}. "
-        f"{rating_line} This product is generally appreciated for craft quality and design, "
-        "while consistency in delivery and packaging details can further improve buyer confidence."
+        f"Based on {review_count} buyer reviews, sentiment is currently {label}. "
+        f"{rating_line} Buyers have shared their experiences regarding this product{keyword_str}, "
+        "providing valuable insights for future customers."
     )
 
 

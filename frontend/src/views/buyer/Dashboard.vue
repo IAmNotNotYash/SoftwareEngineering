@@ -41,7 +41,7 @@
 
       <!-- 4. Art & Culture Insights -->
       <div class="section-container">
-        <h2 class="section-title">Behind the Art: History & Culture</h2>
+        <h2 class="section-title">Stories & Insights</h2>
         <div class="insights-grid">
           <div v-for="insight in insights" :key="insight.id" class="insight-card">
             <div class="insight-image" :style="{ backgroundImage: `url(${insight.image})` }"></div>
@@ -159,8 +159,8 @@ onMounted(async () => {
       artist: p.artist_name,
       title: p.title,
       type: p.type,
-      excerpt: p.body.substring(0, 100) + '...',
-      image: p.cover_image_url ? `http://localhost:5000${p.cover_image_url}` : ''
+      excerpt: stripTags(p.body).substring(0, 100) + '...',
+      image: p.cover_image_url || ''
     }))
   } catch {}
 })
@@ -186,6 +186,12 @@ async function handleAddToCart(product) {
   try { await cartStore.addItem(product.id) }
   catch (e) { alert(e.message) }
   finally { addingId.value = null }
+}
+
+function stripTags(html) {
+  if (!html) return ''
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  return doc.body.textContent || ""
 }
 </script>
 

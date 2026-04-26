@@ -50,39 +50,20 @@
             </div>
           </div>
 
-          <!-- Payment Options -->
+          <!-- Payment Info -->
           <div class="form-section">
             <h2 class="section-title">2. Payment Method</h2>
-            <div class="payment-options">
-              <label class="radio-card" :class="{ active: selectedPayment === 'card' }">
-                <input type="radio" v-model="selectedPayment" value="card" name="payment" />
-                <div class="card-content">
-                  <div class="card-title">Credit / Debit Card</div>
-                  <div class="card-desc">Visa, MasterCard, RuPay</div>
+            <div class="payment-info-card">
+              <div class="card-content">
+                <div class="card-title">Secure Online Payment</div>
+                <div class="card-desc">
+                  You will be redirected to our secure payment gateway (Razorpay) to pay via 
+                  <strong>UPI, Cards, Netbanking or Wallets</strong>.
                 </div>
-              </label>
-
-              <label class="radio-card" :class="{ active: selectedPayment === 'upi' }">
-                <input type="radio" v-model="selectedPayment" value="upi" name="payment" />
-                <div class="card-content">
-                  <div class="card-title">UPI</div>
-                  <div class="card-desc">Google Pay, PhonePe, Paytm</div>
-                </div>
-              </label>
-            </div>
-
-            <!-- Card Form (Conditional) -->
-            <div v-if="selectedPayment === 'card'" class="new-address-form">
-              <input type="text" v-model="cardInfo.number" placeholder="Card Number" class="form-input" />
-              <div class="input-row">
-                <input type="text" v-model="cardInfo.expiry" placeholder="MM/YY" class="form-input" />
-                <input type="text" v-model="cardInfo.cvv" placeholder="CVV" class="form-input" />
               </div>
             </div>
-            <div v-if="selectedPayment === 'upi'" class="new-address-form">
-              <input type="text" v-model="upiId" placeholder="Enter UPI ID (e.g., name@bank)" class="form-input" />
-            </div>
           </div>
+
         </div>
 
         <!-- Right Column: Order Summary -->
@@ -122,28 +103,31 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import BuyerNavbar from '../../components/BuyerNavbar.vue'
 import { useCartStore } from '../../stores/cart.js'
 import { useAuthStore } from '../../stores/auth.js'
-import { placeOrder } from '../../api/commerce.js'
+import { placeOrder, verifyPayment } from '../../api/commerce.js'
 
 const router = useRouter()
 const cartStore = useCartStore()
 const authStore = useAuthStore()
 
 const selectedAddress = ref('home')
-const selectedPayment = ref('card')
 const orderPlaced = ref(false)
 const statusMessage = ref('')
 
 // New address form fields
 const newAddress = ref({ fullAddress: '', city: '', state: '', pinCode: '' })
-// Card form fields  
-const cardInfo = ref({ number: '', expiry: '', cvv: '' })
-// UPI field
-const upiId = ref('')
+
+// Razorpay Script Loading
+onMounted(() => {
+  const script = document.createElement('script');
+  script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+  script.async = true;
+  document.body.appendChild(script);
+})
 
 async function handleCheckout() {
   if (cartStore.items.length === 0) return
@@ -174,31 +158,64 @@ async function handleCheckout() {
     }
   }
 
-  // Build payment snapshot
-  let payment_snapshot
-  if (selectedPayment.value === 'card') {
-    const [month, year] = (cardInfo.value.expiry || '00/00').split('/')
-    payment_snapshot = { 
-      method: 'card', 
-      card_type: 'Visa', // Mock
-      last_4: cardInfo.value.number.slice(-4) || '****', 
-      expiry_month: month || '12',
-      expiry_year: year || '2028'
-    }
-  } else {
-    payment_snapshot = { method: 'upi', upi_id: upiId.value || 'user@upi' }
-  }
-
-  statusMessage.value = 'Placing your order...'
+  statusMessage.value = 'Preparing secure checkout...'
+  
   try {
-    await placeOrder({ 
+    // 1. Create order on backend to get Razorpay Order ID
+    const orderData = await placeOrder({ 
       shipping_address: shipping_address_snapshot, 
-      payment: payment_snapshot 
+      payment: { method: 'razorpay' } // Backend now expects this
     })
-    await cartStore.clearCart()
-    orderPlaced.value = true
+
+    if (!orderData.razorpay_order_id) {
+      throw new Error("Could not initialize payment gateway.")
+    }
+
+    // 2. Open Razorpay Checkout Modal
+    const options = {
+      key: orderData.razorpay_key_id,
+      amount: orderData.amount_paise,
+      currency: "INR",
+      name: "Kala Marketplace",
+      description: "Payment for your artisanal order",
+      order_id: orderData.razorpay_order_id,
+      handler: async function (response) {
+        // This runs if payment is successful at Razorpay level
+        statusMessage.value = 'Verifying payment...'
+        try {
+          await verifyPayment(orderData.id, {
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_signature: response.razorpay_signature
+          })
+          
+          await cartStore.clearCart()
+          orderPlaced.value = true
+        } catch (vErr) {
+          statusMessage.value = "Payment verification failed. Please contact support."
+          console.error(vErr)
+        }
+      },
+      prefill: {
+        name: authStore.user?.full_name || "",
+        email: authStore.user?.email || "",
+      },
+      theme: {
+        color: "#C4622D"
+      },
+      modal: {
+        ondismiss: function() {
+          statusMessage.value = "Checkout cancelled."
+        }
+      }
+    };
+
+    const rzp = new window.Razorpay(options);
+    rzp.open();
+
   } catch (err) {
     statusMessage.value = err.message
+    console.error("Checkout Error:", err)
   }
 }
 </script>
@@ -251,15 +268,18 @@ async function handleCheckout() {
   margin-bottom: 24px;
 }
 
-.radio-card {
+.radio-card, .payment-info-card {
   display: flex;
   align-items: flex-start;
   gap: 16px;
   padding: 20px;
   border: 1px solid #e8e0d8;
   border-radius: 8px;
-  cursor: pointer;
   transition: all 0.2s;
+}
+
+.radio-card {
+  cursor: pointer;
 }
 
 .radio-card:hover {

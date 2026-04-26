@@ -1,6 +1,8 @@
-from flask import Blueprint, request, jsonify
-from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 import json
+import os
+import uuid
+from flask import Blueprint, request, jsonify, current_app
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from app import db
 from app.models.user import User, BuyerProfile, ArtistProfile
 
@@ -184,3 +186,58 @@ def update_profile():
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
+
+@auth_bp.route('/profile/upload-image', methods=['POST', 'OPTIONS'])
+def upload_profile_image():
+    if request.method == 'OPTIONS':
+        return '', 204
+    
+    from flask_jwt_extended import verify_jwt_in_request
+    verify_jwt_in_request()
+    raw_identity = get_jwt_identity()
+    try:
+        identity = json.loads(raw_identity) if isinstance(raw_identity, str) else raw_identity
+    except (json.JSONDecodeError, TypeError):
+        identity = raw_identity
+
+    user = db.session.get(User, identity['id'])
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+
+    if file:
+        ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else 'jpg'
+        filename = f"profile_{user.id}_{uuid.uuid4().hex[:8]}.{ext}"
+        
+        storage_path = os.path.join(current_app.root_path, 'static', 'profiles')
+        if not os.path.exists(storage_path):
+            os.makedirs(storage_path, exist_ok=True)
+            
+        file_path = os.path.join(storage_path, filename)
+        public_url = f"/static/profiles/{filename}"
+        full_url = f"{request.host_url.rstrip('/')}{public_url}"
+        
+        try:
+            file.save(file_path)
+            
+            image_type = request.args.get('type', 'profile')
+
+            if user.role == 'buyer' and user.buyer_profile:
+                user.buyer_profile.profile_image_url = public_url
+            elif user.role == 'artist' and user.artist_profile:
+                if image_type == 'cover':
+                    user.artist_profile.cover_image_url = public_url
+                else:
+                    user.artist_profile.profile_image_url = public_url
+
+            db.session.commit()
+            return jsonify({'url': full_url}), 200
+        except Exception as e:
+            current_app.logger.error(f"Failed to save profile image: {str(e)}")
+            return jsonify({'error': f"FileSystem error: {str(e)}"}), 500

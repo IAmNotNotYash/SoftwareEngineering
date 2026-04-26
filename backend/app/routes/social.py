@@ -151,25 +151,40 @@ def list_followers():
 def list_posts():
     post_type = request.args.get('type') # 'story' or 'insight'
     artist_id = request.args.get('artist_id')
+    user_id = request.args.get('user_id')
     catalogue_id = request.args.get('catalogue_id')
     
-    # Determine if we should show unpublished posts
-    show_unpublished = False
     identity = _get_identity()
-    if identity and identity['role'] == 'artist':
-        artist = ArtistProfile.query.filter_by(user_id=identity['id']).first()
-        if artist and (not artist_id or artist_id == artist.id):
-            show_unpublished = True
+    
+    # 1. Start with the appropriate query based on permissions
+    # show_unpublished is only True if viewing your own posts
+    current_artist = None
+    if identity and identity.get('role') == 'artist':
+        current_artist = ArtistProfile.query.filter_by(user_id=identity['id']).first()
 
-    if show_unpublished:
-        query = Post.query
+    # Determine targeted artist if user_id is provided
+    if user_id:
+        target_artist = ArtistProfile.query.filter_by(user_id=user_id).first()
+        if target_artist:
+            artist_id = target_artist.id
+
+    # Filtering Logic
+    if artist_id:
+        is_self = current_artist and current_artist.id == artist_id
+        if is_self:
+            query = Post.query.filter_by(artist_id=artist_id)
+        else:
+            query = Post.query.filter_by(artist_id=artist_id, is_published=True)
+    elif not artist_id and not catalogue_id and current_artist and not request.args.get('all'):
+        # Dashboard view (no specific filter, artist logged in): show ONLY own posts
+        query = Post.query.filter_by(artist_id=current_artist.id)
     else:
+        # Global view or catalogue view: show only published
         query = Post.query.filter_by(is_published=True)
 
     if post_type:
         query = query.filter_by(type=post_type)
-    if artist_id:
-        query = query.filter_by(artist_id=artist_id)
+    
     if catalogue_id:
         query = query.filter_by(catalogue_id=catalogue_id)
         
@@ -252,6 +267,70 @@ def create_post():
     db.session.commit()
     return jsonify(post.to_dict()), 201
 
+@social_bp.route('/posts/<string:post_id>', methods=['GET'])
+@jwt_required(optional=True)
+def get_post(post_id):
+    # Debug: log the ID to console so we can see it in run.py
+    print(f"Kala Diagnostics: Fetching Story ID [{post_id}]")
+    
+    # 1. Primary lookup
+    post = Post.query.filter_by(id=post_id).first()
+    
+    # 2. Resilient fallback lookups
+    if not post:
+        clean_id = post_id.strip()
+        post = Post.query.filter_by(id=clean_id).first()
+    
+    if not post:
+        # Final stand: total identity match attempt
+        all_posts = Post.query.all()
+        for p in all_posts:
+            if str(p.id).strip() == str(post_id).strip():
+                post = p
+                break
+
+    if not post:
+        print(f"Kala Diagnostics: STORY NOT FOUND in DB for ID [{post_id}]")
+        return jsonify({'error': 'Story not found'}), 404
+    
+    # Check permission: if not published, only the artist owner can see it
+    if not post.is_published:
+        identity = _get_identity()
+        if not identity or identity['role'] != 'artist':
+            return jsonify({'error': 'Post is not published'}), 403
+        
+        artist = ArtistProfile.query.filter_by(user_id=identity['id']).first()
+        if not artist or post.artist_id != artist.id:
+            return jsonify({'error': 'Access denied'}), 403
+            
+    # Check like status if user is logged in
+    identity = _get_identity()
+    buyer = None
+    if identity and identity.get('role') == 'buyer':
+        buyer = BuyerProfile.query.filter_by(user_id=identity['id']).first()
+        
+    data = post.to_dict()
+    if buyer:
+        liked = PostLike.query.filter_by(post_id=post.id, buyer_id=buyer.id).first()
+        data['has_liked'] = liked is not None
+    else:
+        data['has_liked'] = False
+        
+    # Bump view count if not seen by the artist owner
+    is_owner = False
+    if identity and identity.get('role') == 'artist':
+        artist = ArtistProfile.query.filter_by(user_id=identity['id']).first()
+        if artist and post.artist_id == artist.id:
+            is_owner = True
+            
+    if not is_owner:
+        post.views_count += 1
+        db.session.commit()
+        # Update the dict to show latest count
+        data['views_count'] = post.views_count
+        
+    return jsonify(data), 200
+
 @social_bp.route('/posts/<string:post_id>', methods=['PATCH'])
 @jwt_required()
 def update_post(post_id):
@@ -260,7 +339,7 @@ def update_post(post_id):
     
     post = Post.query.get_or_404(post_id)
     if post.artist_id != artist.id:
-        return jsonify({'error': 'Acess denied'}), 403
+        return jsonify({'error': 'Access denied'}), 403
         
     data = request.get_json()
     if 'title' in data: post.title = data['title']
@@ -291,9 +370,15 @@ def delete_post(post_id):
 
 # ── REVIEWS ──────────────────────────────────────────────────────────────────
 
-@social_bp.route('/reviews', methods=['POST'])
-@jwt_required()
+@social_bp.route('/reviews', methods=['POST', 'OPTIONS'])
+@jwt_required(optional=True)
 def add_review():
+    if request.method == 'OPTIONS':
+        return '', 204
+        
+    from flask_jwt_extended import verify_jwt_in_request
+    verify_jwt_in_request()
+    
     identity = _get_identity()
     if identity['role'] != 'buyer':
         return jsonify({'error': 'Only buyers can leave reviews'}), 403
@@ -320,13 +405,15 @@ def list_reviews(target_type, target_id):
 
 @social_bp.route('/reviews/<string:target_type>/<string:target_id>/summary', methods=['GET'])
 def get_review_summary(target_type, target_id):
-    if target_type not in ('product', 'catalogue'):
-        return jsonify({'error': "target_type must be 'product' or 'catalogue'"}), 400
+    if target_type not in ('product', 'catalogue', 'post'):
+        return jsonify({'error': "target_type must be 'product', 'catalogue', or 'post'"}), 400
 
     if target_type == 'product':
         target = Product.query.filter_by(id=target_id, is_deleted=False).first()
-    else:
+    elif target_type == 'catalogue':
         target = Catalogue.query.filter_by(id=target_id).first()
+    else:
+        target = Post.query.filter_by(id=target_id).first()
 
     if not target:
         return jsonify({'error': f'{target_type.capitalize()} not found'}), 404

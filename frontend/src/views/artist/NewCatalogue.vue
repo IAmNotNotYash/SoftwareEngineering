@@ -49,8 +49,35 @@
               <input v-model="form.title" class="input-field" placeholder="e.g. Earth Tone Spring Collection" />
             </div>
             <div class="form-group">
-              <label>Brand Narrative / Tagline</label>
-              <textarea v-model="form.narrative" class="input-field" rows="3" placeholder="Set the mood for this catalogue..."></textarea>
+              <label>Catalogue Type / Category</label>
+              <div class="tag-selector">
+                <div class="selected-tags" v-if="form.category">
+                  <span v-for="cat in form.category.split(',').filter(c => c.trim())" :key="cat" class="tag">
+                    {{ cat.trim() }}
+                    <button @click="removeCategory(cat.trim())" class="remove-tag">×</button>
+                  </span>
+                </div>
+                <div class="tag-input-wrap">
+                  <input 
+                    v-model="categoryInput" 
+                    list="categories-list" 
+                    placeholder="Type or select a category..." 
+                    class="input-field tag-input"
+                    @keydown.enter.prevent="addCategory"
+                  />
+                  <datalist id="categories-list">
+                    <option v-for="cat in allExistingCategories" :key="cat" :value="cat" />
+                  </datalist>
+                  <button class="btn secondary-btn small-btn add-tag-btn" @click="addCategory">Add</button>
+                </div>
+              </div>
+              <p class="field-hint">Add multiple categories to help buyers find your work. Suggestions are based on categories used by other artists.</p>
+            </div>
+            
+            <div class="form-group">
+              <label>Artist's Note (Optional)</label>
+              <textarea v-model="form.artist_note" class="input-field" rows="3" placeholder="Add a personal note to your buyers about this collection..."></textarea>
+              <p class="field-hint">This note will appear prominently at the top of your catalogue page.</p>
             </div>
           </div>
 
@@ -287,6 +314,10 @@
             <textarea v-model="productModal.form.description" class="textarea-field" rows="3" placeholder="Describe your masterpiece..."></textarea>
           </div>
           <div class="form-group">
+            <label>Details</label>
+            <textarea v-model="productModal.form.details" class="textarea-field" rows="3" placeholder="Add specific details (e.g., size, materials, care instructions)..."></textarea>
+          </div>
+          <div class="form-group">
             <label>Product Image</label>
             <div class="mini-upload" style="height: 150px; width: 100%; border-radius: 8px;" :style="{ backgroundImage: `url(${productModal.form.image_url})` }" @click="triggerProductImageUpload">
                <input type="file" ref="productImageInput" hidden accept="image/*" @change="handleProductImageUpload" />
@@ -311,7 +342,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import ArtistNavbar from '../../components/ArtistNavbar.vue'
 import { useAuthStore } from '../../stores/auth'
-import { createCatalogue, updateCatalogue, uploadCatalogueCover, uploadStoryFrame, getCatalogue } from '../../api/catalogue'
+import { createCatalogue, updateCatalogue, uploadCatalogueCover, uploadStoryFrame, getCatalogue, getCatalogueCategories } from '../../api/catalogue'
 import { getProducts, createProduct, updateProduct, deleteProduct as apiDeleteProduct, uploadProductImageFile } from '../../api/products'
 import { createPost, updatePost, deletePost } from '../../api/social'
 import { QuillEditor } from '@vueup/vue-quill'
@@ -351,7 +382,9 @@ onMounted(async () => {
       
       // Map data to form
       form.title = cat.title || ''
+      form.category = cat.category || ''
       form.narrative = cat.narrative || ''
+      form.artist_note = cat.artist_note || ''
       form.theme = cat.theme || 'earth'
       
       // If your backend stores launch_intent or similar:
@@ -399,12 +432,40 @@ onMounted(async () => {
 
   // Load available products from inventory
   await loadProducts()
+  
+  // Load existing categories for autocomplete
+  try {
+    allExistingCategories.value = await getCatalogueCategories()
+  } catch (err) {
+    console.error("Failed to load global categories:", err)
+  }
 })
+
+const allExistingCategories = ref([])
+const categoryInput = ref('')
+
+const addCategory = (cat) => {
+  const val = typeof cat === 'string' ? cat.trim() : categoryInput.value.trim()
+  if (!val) return
+  
+  const current = form.category ? form.category.split(',').map(c => c.trim()) : []
+  if (!current.includes(val)) {
+    current.push(val)
+    form.category = current.join(', ')
+  }
+  categoryInput.value = ''
+}
+
+const removeCategory = (cat) => {
+  const current = form.category ? form.category.split(',').map(c => c.trim()) : []
+  const filtered = current.filter(c => c !== cat)
+  form.category = filtered.join(', ')
+}
 
 const catalogueStatus = ref('draft')
 
 const isStepComplete = (idx) => {
-  if (idx === 0) return form.title.trim().length > 0 && form.narrative.trim().length > 0;
+  if (idx === 0) return form.title.trim().length > 0;
   if (idx === 1) return !!form.coverPhoto;
   if (idx === 2) return form.stories && form.stories.length > 0;
   if (idx === 3) return availableProducts.value.length > 0;
@@ -420,7 +481,9 @@ const getFullImageUrl = (url) => {
 
 const form = reactive({
   title: '',
+  category: '',
   narrative: '',
+  artist_note: '',
   coverPhoto: null,
   theme: 'earth',
   stories: [],
@@ -441,6 +504,7 @@ const productModal = reactive({
     title: '',
     price: '',
     description: '',
+    details: '',
     category: '',
     image_url: '' // Preview URL
   }
@@ -460,7 +524,8 @@ const loadProducts = async () => {
       img: getFullImageUrl(p.image) || 'https://images.unsplash.com/photo-1544816155-12df9643f363?w=300',
       price: p.price,
       orders: p.order_count || 0,
-      description: p.description
+      description: p.description,
+      details: p.details
     }))
   } catch (err) {
     console.error("Failed to load products:", err)
@@ -476,13 +541,14 @@ const openProductModal = (product = null) => {
       title: product.name,
       price: product.price,
       description: product.description,
+      details: product.details,
       category: 'Art',
       image_url: product.img
     }
   } else {
     productModal.isEditing = false
     productModal.productId = null
-    productModal.form = { title: '', price: '', description: '', category: 'Art', image_url: '' }
+    productModal.form = { title: '', price: '', description: '', details: '', category: 'Art', image_url: '' }
   }
   productModal.isOpen = true
 }
@@ -682,16 +748,14 @@ const saveCatalogueDetails = async () => {
     alert("Catalogue title must be at least 3 characters.")
     return false
   }
-  if (wordCount < 3) {
-    alert("Brand narrative must be at least 3 words.")
-    return false
-  }
 
   // API Call
   try {
     const payload = {
       title: title,
+      category: form.category,
       narrative: narrative,
+      artist_note: form.artist_note,
       theme: form.theme,
       launch_intent: form.intent,
       status: 'draft'
@@ -916,6 +980,61 @@ const prevStep = () => {
 .input-field:focus {
   outline: none;
   border-color: #C4622D;
+}
+
+.tag-selector {
+  border: 1px solid #e8e0d8;
+  border-radius: 8px;
+  padding: 8px;
+  background: #fff;
+}
+
+.selected-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.tag {
+  background: #fdf2ed;
+  color: #C4622D;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(196, 98, 45, 0.2);
+}
+
+.remove-tag {
+  background: none;
+  border: none;
+  color: #C4622D;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+}
+
+.tag-input-wrap {
+  display: flex;
+  gap: 8px;
+}
+
+.tag-input {
+  border: none !important;
+  padding: 8px !important;
+}
+
+.tag-input:focus {
+  box-shadow: none !important;
+}
+
+.add-tag-btn {
+  white-space: nowrap;
 }
 
 .cover-upload-zone {

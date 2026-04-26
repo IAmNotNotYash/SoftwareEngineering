@@ -18,7 +18,7 @@
           
           <div class="order-items">
             <div v-for="item in (order.items || [])" :key="item.id" class="order-item">
-              <div class="item-img" :style="{ backgroundImage: `url(${item.image})` }"></div>
+              <div class="item-img" :style="{ backgroundImage: `url(${getImageUrl(item.image)})` }"></div>
               <div class="item-details">
                 <div class="item-title">{{ item.title }}</div>
                 <div class="item-artist">{{ item.artist }}</div>
@@ -115,6 +115,12 @@ const toggleDetails = (id) => {
 const EVENT_LABEL = {
   confirmed: 'Order Confirmed', dispatched: 'Dispatched',
   out_for_delivery: 'Out for Delivery', delivered: 'Delivered', cancelled: 'Cancelled',
+}
+
+const getImageUrl = (url) => {
+  if (!url) return 'https://images.unsplash.com/photo-1544816155-12df9643f363?w=800'
+  if (url.startsWith('http')) return url
+  return `http://localhost:5000${url}`
 }
 </script>
 

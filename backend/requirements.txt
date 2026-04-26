@@ -20,6 +20,7 @@ psycopg2-binary==2.9.10
 PyJWT==2.12.1
 pytest==8.2.0
 python-dotenv==1.0.1
+razorpay==1.4.1
 SQLAlchemy==2.0.48
 tomli==2.4.1
 typing_extensions==4.15.0

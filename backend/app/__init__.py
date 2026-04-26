@@ -3,11 +3,13 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
+from flask_mail import Mail
 import os
 
 db = SQLAlchemy()
 migrate = Migrate()
 jwt = JWTManager()
+mail = Mail()
 
 def create_app():
     app = Flask(__name__)
@@ -17,11 +19,11 @@ def create_app():
     from app.config import config_map
     app.config.from_object(config_map[env])
 
-    # Init extensions
-    CORS(app)
+    CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
+    mail.init_app(app)
 
     # JWT Debug Loaders
     @jwt.unauthorized_loader
@@ -54,10 +56,6 @@ def create_app():
         except Exception:
             return None
 
-    @jwt.unauthorized_loader
-    def unauthorized_response(callback):
-        # This triggers if no token OR if user_lookup_loader returns None
-        return {"error": "Unauthorized", "msg": "Session invalid or account blocked"}, 401
     from app.routes.auth import auth_bp
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
 

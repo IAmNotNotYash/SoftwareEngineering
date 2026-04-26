@@ -35,6 +35,6 @@ export function getPlatformTrend() {
   return request('/platform/trend')
 }
 
-export function getAnalyticsSnapshot(type = 'artist') {
-  return request(`/snapshots?type=${type}`)
+export function getAnalyticsSnapshot(type = 'artist', refresh = false) {
+  return request(`/snapshots?type=${type}${refresh ? '&refresh=true' : ''}`)
 }

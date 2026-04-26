@@ -9,6 +9,7 @@
           <p class="subtitle">Here is how {{ authStore.user?.brandName || 'your brand' }} and catalogues are performing.</p>
         </div>
         <div class="quick-actions">
+          <RouterLink to="/artist/story" class="btn secondary-btn">📝 New Story</RouterLink>
           <RouterLink to="/artist/newcatalogue" class="btn primary-btn">+ New Catalogue</RouterLink>
         </div>
       </header>
@@ -23,7 +24,7 @@
           <div class="kpi-value">{{ stats.totalOrders }}</div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-label">CATALOGUE VIEWS</div>
+          <div class="kpi-label">TOTAL VIEWS</div>
           <div class="kpi-value">{{ stats.catalogueViews.toLocaleString() }}</div>
         </div>
         <div class="kpi-card">
@@ -33,22 +34,39 @@
       </section>
       <div v-else class="loading-state">Loading actual performance metrics...</div>
 
-      <section class="chart-section" v-if="!loading">
-        <div class="chart-header">
-          <h2>Performance Over Time</h2>
-          <div class="legend">
-            <span class="legend-item"><span class="dot rev-dot"></span> Revenue</span>
-            <span class="legend-item"><span class="dot view-dot"></span> Catalogue Views</span>
+      <section class="analytics-hub" v-if="!loading">
+        <div class="hub-header">
+          <div class="tab-switcher">
+            <button 
+              class="tab-btn" 
+              :class="{ active: activeTab === 'revenue' }" 
+              @click="activeTab = 'revenue'"
+            >
+              💰 Revenue History
+            </button>
+            <button 
+              class="tab-btn" 
+              :class="{ active: activeTab === 'views' }" 
+              @click="activeTab = 'views'"
+            >
+              👁️ Total Content Views
+            </button>
           </div>
         </div>
-        <div class="chart-container">
-          <canvas ref="performanceChart"></canvas>
+
+        <div class="chart-card">
+          <div v-show="activeTab === 'revenue'" class="chart-container">
+            <canvas ref="revenueChart"></canvas>
+          </div>
+          <div v-show="activeTab === 'views'" class="chart-container">
+            <canvas ref="viewsChart"></canvas>
+          </div>
         </div>
       </section>
 
       <!-- AI Insights Section -->
-      <section class="ai-section" v-if="!loading && aiSummary">
-        <div class="ai-card">
+      <section class="ai-section" v-if="!loading">
+        <div class="ai-card" v-if="aiSummary">
           <div class="ai-header">
             <span class="ai-icon">✨</span>
             <div class="ai-title-group">
@@ -61,6 +79,15 @@
             <div class="sentiment-box" v-if="aiSummary.sentiment_summary">
               <label>Buyer Sentiment</label>
               <p>{{ aiSummary.sentiment_summary }}</p>
+            </div>
+          </div>
+        </div>
+        <div class="ai-card loading-ai" v-else>
+          <div class="ai-header">
+            <span class="ai-icon pulse">🪄</span>
+            <div class="ai-title-group">
+              <h3>Generating Insights...</h3>
+              <p>Our AI is analyzing your new sales and view data.</p>
             </div>
           </div>
         </div>
@@ -91,26 +118,35 @@ const stats = ref({
 })
 const aiSummary = ref(null)
 const loading = ref(true)
-const performanceChart = ref(null)
+const revenueChart = ref(null)
+const viewsChart = ref(null)
+const activeTab = ref('revenue')
 
 onMounted(async () => {
   try {
     const trendData = await getArtistTrend()
     
-    // Process trend data for Chart.js
+    // Process trend data
     stats.value.months = trendData.map(t => t.month)
     stats.value.revenueTrend = trendData.map(t => t.revenue)
     stats.value.viewsTrend = trendData.map(t => t.views || t.catalogue_views || 0)
     
-    // Aggregates for KPIs
-    const totalRev = stats.value.revenueTrend.reduce((a, b) => a + b, 0)
-    stats.value.totalRevenue = `₹${totalRev.toLocaleString('en-IN')}`
-    stats.value.totalOrders = trendData.reduce((a, b) => a + (b.orders || 0), 0)
-    stats.value.catalogueViews = stats.value.viewsTrend.reduce((a, b) => a + b, 0)
-    stats.value.storyEngagement = '0%' // Real calculation pending activity
-
-    // Fetch AI Snapshot
-    aiSummary.value = await getAnalyticsSnapshot('artist')
+    const snapshot = await getAnalyticsSnapshot('artist', true)
+    aiSummary.value = snapshot
+    
+    if (snapshot && snapshot.metrics) {
+      const m = snapshot.metrics
+      stats.value.totalRevenue = `₹${m.total_revenue.toLocaleString('en-IN')}`
+      stats.value.totalOrders = m.total_orders
+      stats.value.catalogueViews = m.catalogue_views
+      stats.value.storyEngagement = `${m.avg_story_engagement_pct}%`
+    } else {
+      const totalRev = stats.value.revenueTrend.reduce((a, b) => a + b, 0)
+      stats.value.totalRevenue = `₹${totalRev.toLocaleString('en-IN')}`
+      stats.value.totalOrders = trendData.reduce((a, b) => a + (b.orders || 0), 0)
+      stats.value.catalogueViews = stats.value.viewsTrend.reduce((a, b) => a + b, 0)
+      stats.value.storyEngagement = '0%'
+    }
   } catch (err) {
     console.error("Failed to load dashboard data", err)
   } finally {
@@ -119,65 +155,69 @@ onMounted(async () => {
   
   if (stats.value.months.length) {
     await nextTick()
-    initChart()
+    initRevenueChart()
+    initViewsChart()
   }
 })
 
-const initChart = () => {
-  if (!performanceChart.value) return
-  
-  new Chart(performanceChart.value, {
+const initRevenueChart = () => {
+  if (!revenueChart.value) return
+  new Chart(revenueChart.value, {
     type: 'line',
     data: {
       labels: stats.value.months,
-      datasets: [
-        {
-          label: 'Revenue',
-          data: stats.value.revenueTrend,
-          borderColor: '#C4622D',
-          backgroundColor: 'rgba(196, 98, 45, 0.1)',
-          fill: true,
-          tension: 0.4,
-          borderWidth: 3,
-          yAxisID: 'y'
-        },
-        {
-          label: 'Catalogue Views',
-          data: stats.value.viewsTrend,
-          borderColor: '#2D2A26',
-          backgroundColor: 'rgba(45, 42, 38, 0.05)',
-          fill: true,
-          tension: 0.4,
-          borderWidth: 2,
-          yAxisID: 'y1'
-        }
-      ]
+      datasets: [{
+        label: 'Revenue',
+        data: stats.value.revenueTrend,
+        borderColor: '#C4622D',
+        backgroundColor: 'rgba(196, 98, 45, 0.1)',
+        fill: true,
+        tension: 0.4,
+        borderWidth: 3
+      }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      interaction: {
-        mode: 'index',
-        intersect: false,
-      },
-      plugins: {
-        legend: { display: false }
-      },
+      plugins: { legend: { display: false } },
       scales: {
-        x: {
-          grid: { display: false }
-        },
-        y: {
-          type: 'linear',
-          display: true,
-          position: 'left',
-          grid: { color: '#f0f0f0' }
-        },
-        y1: {
-          type: 'linear',
-          display: true,
-          position: 'right',
-          grid: { display: false }
+        x: { grid: { display: false } },
+        y: { 
+          beginAtZero: true, 
+          suggestedMax: 1000,
+          grid: { color: '#f5f5f5' } 
+        }
+      }
+    }
+  })
+}
+
+const initViewsChart = () => {
+  if (!viewsChart.value) return
+  new Chart(viewsChart.value, {
+    type: 'line',
+    data: {
+      labels: stats.value.months,
+      datasets: [{
+        label: 'Views',
+        data: stats.value.viewsTrend,
+        borderColor: '#2D2A26',
+        backgroundColor: 'rgba(45, 42, 38, 0.05)',
+        fill: true,
+        tension: 0.4,
+        borderWidth: 3
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false } },
+        y: { 
+          beginAtZero: true, 
+          suggestedMax: 10,
+          grid: { color: '#f5f5f5' } 
         }
       }
     }
@@ -291,53 +331,62 @@ const initChart = () => {
   color: #C4622D;
 }
 
-/* Chart Section */
-.chart-section {
-  background: #ffffff;
-  border-radius: 12px;
-  padding: 32px;
+/* Analytics Hub Section */
+.analytics-hub {
+  margin-bottom: 56px;
+}
+
+.hub-header {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 32px;
+}
+
+.tab-switcher {
+  display: flex;
+  background: #fdfaf8;
+  padding: 6px;
+  border-radius: 50px;
   border: 1px solid #e8e0d8;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+  gap: 8px;
 }
 
-.chart-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-}
-
-.chart-header h2 {
-  font-family: var(--font-heading);
-  font-size: 22px;
-  margin: 0;
-  color: #1a1a1a;
-}
-
-.legend {
-  display: flex;
-  gap: 20px;
-}
-
-.legend-item {
-  font-size: 13px;
-  color: #555;
+.tab-btn {
+  padding: 10px 24px;
+  border-radius: 40px;
+  border: none;
+  background: transparent;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #888;
+  cursor: pointer;
+  transition: all 0.3s ease;
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
+.tab-btn:hover {
+  color: #C4622D;
 }
 
-.rev-dot { background: #C4622D; }
-.view-dot { background: #2D2A26; }
+.tab-btn.active {
+  background: #C4622D;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(196, 98, 45, 0.2);
+}
+
+.chart-card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 40px;
+  border: 1px solid #e8e0d8;
+  box-shadow: 0 4px 30px rgba(0,0,0,0.02);
+}
 
 .chart-container {
-  height: 380px;
+  height: 400px;
   width: 100%;
 }
 
@@ -414,5 +463,19 @@ const initChart = () => {
   font-style: italic;
   margin: 0;
   color: #555;
+}
+.pulse {
+  animation: pulse-animation 2s infinite;
+}
+
+@keyframes pulse-animation {
+  0% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.1); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.loading-ai {
+  border-style: dashed;
+  opacity: 0.7;
 }
 </style>

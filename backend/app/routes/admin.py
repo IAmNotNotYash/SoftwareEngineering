@@ -25,15 +25,22 @@ def get_stats():
     err = _require_admin()
     if err: return err
 
-    total_revenue = db.session.query(db.func.sum(Order.total)).scalar() or 0
-    total_orders = Order.query.count()
+    total_revenue_val = db.session.query(db.func.sum(Order.total))\
+        .filter(Order.status != 'cancelled')\
+        .scalar() or 0
+    total_orders = Order.query.filter(Order.status != 'cancelled').count()
+    delivered_orders = Order.query.filter_by(status='delivered').count()
+    pending_orders = Order.query.filter(Order.status.in_(['pending', 'processing', 'shipped'])).count()
+    
     artist_count = ArtistProfile.query.count()
     buyer_count = BuyerProfile.query.count()
     pending_verifications = ArtistProfile.query.filter_by(verification_status='pending').count()
 
     return jsonify({
-        'totalRevenue': float(total_revenue),
+        'totalRevenue': float(total_revenue_val),
         'totalOrders': total_orders,
+        'deliveredOrders': delivered_orders,
+        'pendingOrders': pending_orders,
         'registeredArtists': artist_count,
         'registeredBuyers': buyer_count,
         'pendingVerifications': pending_verifications
@@ -48,9 +55,9 @@ def get_artist_performance():
     results = db.session.query(
         ArtistProfile.full_name,
         ArtistProfile.brand_name,
-        db.func.sum(Order.total).label('revenue'),
+        db.func.sum(Order.subtotal).label('revenue'),
         db.func.count(Order.id).label('orders')
-    ).outerjoin(Order, ArtistProfile.id == Order.artist_id)\
+    ).outerjoin(Order, db.and_(ArtistProfile.id == Order.artist_id, Order.status != 'cancelled'))\
      .group_by(ArtistProfile.id)\
      .all()
 

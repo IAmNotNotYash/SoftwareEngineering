@@ -34,9 +34,10 @@
         </div>
 
         <!-- Artist Bio -->
-        <div class="bio-section">
+        <div class="bio-section" v-if="artist.bio || !isFollowing">
           <h2>About the Artist</h2>
-          <p>{{ artist.bio }}</p>
+          <p v-if="artist.bio" class="bio-text">{{ artist.bio }}</p>
+          <p v-else class="bio-placeholder">This artist is currently curating their artisan journey and history. Follow them to stay updated on their latest stories.</p>
         </div>
 
         <div class="divider"></div>
@@ -75,7 +76,7 @@
                 </RouterLink>
                 <div class="product-footer">
                   <span class="product-price">₹{{ product.price.toLocaleString('en-IN') }}</span>
-                  <button class="add-cart-btn" @click="cartStore.addItem(product.id)">Add to Cart</button>
+                  <button class="add-cart-btn" @click="handleAddToCart(product.id)">Add to Cart</button>
                 </div>
               </div>
             </div>
@@ -86,7 +87,7 @@
 
         <!-- Artist's Stories/Insights -->
         <div class="stories-feed-section" v-if="stories.length > 0">
-          <h2>Behind the Craft</h2>
+          <h2>Stories & Insights</h2>
           <div class="stories-feed-grid">
             <div v-for="story in stories" :key="story.id" class="story-feed-card">
               <div class="story-feed-image" v-if="story.image" :style="{ backgroundImage: `url(${story.image})` }"></div>
@@ -130,7 +131,7 @@ onMounted(async () => {
       id: p.id,
       title: p.title,
       type: p.type,
-      excerpt: p.body.substring(0, 150) + '...',
+      excerpt: stripTags(p.body).substring(0, 150) + '...',
       image: p.cover_image_url
     }))
   } catch (e) {
@@ -147,6 +148,10 @@ onMounted(async () => {
 })
 
 const toggleFollow = async () => {
+  if (!authStore.user) {
+    alert('Please log in to follow artists.')
+    return
+  }
   const artistId = artist.value.id
   try {
     if (isFollowing.value) {
@@ -161,6 +166,27 @@ const toggleFollow = async () => {
   } catch (e) {
     alert('Action failed: ' + e.message)
   }
+}
+
+async function handleAddToCart(productId) {
+  if (!authStore.user || authStore.user.role !== 'buyer') {
+    alert(authStore.user?.role === 'artist' 
+      ? 'Artists cannot purchase items. Please log in with a Buyer account.' 
+      : 'Please log in to add items to your cart.')
+    return
+  }
+  try {
+    await cartStore.addItem(productId)
+    alert('Added to cart!')
+  } catch (e) {
+    alert(e.message)
+  }
+}
+
+function stripTags(html) {
+  if (!html) return ''
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  return doc.body.textContent || ""
 }
 </script>
 
@@ -235,6 +261,7 @@ const toggleFollow = async () => {
   font-size: 36px;
   font-weight: 600;
   color: #000;
+  margin-top: 80px !important; /* Extremely high value to ensure it moves */
   margin-bottom: 8px;
 }
 
@@ -282,6 +309,15 @@ const toggleFollow = async () => {
   font-size: 16px;
   line-height: 1.6;
   color: #444;
+}
+
+.bio-text {
+  white-space: pre-line;
+}
+
+.bio-placeholder {
+  font-style: italic;
+  color: #888 !important;
 }
 
 .divider {

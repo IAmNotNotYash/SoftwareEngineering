@@ -24,6 +24,26 @@
         </div>
       </div>
 
+      <!-- Category Tabs -->
+      <div class="category-tabs" v-if="searchType === 'all' || searchType === 'catalogue'">
+        <button 
+          class="tab-btn" 
+          :class="{ active: selectedCategory === 'All' }"
+          @click="selectedCategory = 'All'"
+        >
+          All
+        </button>
+        <button 
+          v-for="cat in uniqueCategories" 
+          :key="cat" 
+          class="tab-btn"
+          :class="{ active: selectedCategory === cat }"
+          @click="selectedCategory = cat"
+        >
+          {{ cat }}
+        </button>
+      </div>
+
       <!-- Catalogues Section -->
       <div class="section-container" v-if="searchType === 'all' || searchType === 'catalogue'">
         <div class="section-header">
@@ -89,8 +109,22 @@ const authStore = useAuthStore()
 
 const searchQuery = ref('')
 const searchType = ref('all')
+const selectedCategory = ref('All')
 const catalogues = ref([])
 const artists = ref([])
+
+const uniqueCategories = computed(() => {
+  const cats = new Set()
+  catalogues.value.forEach(c => {
+    if (c.category) {
+      c.category.split(',').forEach(s => {
+        const trimmed = s.trim()
+        if (trimmed) cats.add(trimmed)
+      })
+    }
+  })
+  return Array.from(cats).sort()
+})
 
 const showAllCatalogues = ref(false)
 const showAllArtists = ref(false)
@@ -102,43 +136,65 @@ const searchPlaceholder = computed(() => {
 })
 
 onMounted(async () => {
-  const rawCatalogues = await getCatalogues()
-  catalogues.value = rawCatalogues.map(c => ({
-    id: c.id,
-    title: c.title,
-    artist: c.artist_name || 'Independent Artist',
-    date: c.published_at ? new Date(c.published_at).toLocaleDateString() : 'Recently',
-    cover: c.cover_photo_url ? (c.cover_photo_url.startsWith('http') ? c.cover_photo_url : `http://localhost:5000${c.cover_photo_url}`) : ''
-  }))
-
-  const rawArtists = await getArtists()
-  for (let a of rawArtists) {
-    if (authStore.user) {
-      try {
-        const { is_following } = await checkFollowStatus(a.id)
-        a.isFollowing = is_following
-      } catch {
-        a.isFollowing = false
-      }
-    } else {
-      a.isFollowing = false
-    }
+  try {
+    const response = await getCatalogues()
+    // The backend returns { catalogues: [...] }
+    const rawCatalogues = response.catalogues || []
+    catalogues.value = rawCatalogues.map(c => ({
+      id: c.id,
+      title: c.title,
+      category: c.category || '',
+      artist: c.artist_name || 'Independent Artist',
+      date: c.published_at ? new Date(c.published_at).toLocaleDateString() : 'Recently',
+      cover: c.cover_photo_url ? (c.cover_photo_url.startsWith('http') ? c.cover_photo_url : `http://localhost:5000${c.cover_photo_url}`) : ''
+    }))
+  } catch (err) {
+    console.error("Failed to fetch catalogues:", err)
   }
-  artists.value = rawArtists.map(a => ({
-    id: a.id,
-    name: a.name || 'Anonymous Artist',
-    category: a.category || 'Creator',
-    followers: a.followers || 0,
-    avatar: a.avatar ? (a.avatar.startsWith('http') ? a.avatar : `http://localhost:5000${a.avatar}`) : null,
-    isFollowing: a.isFollowing
-  }))
+
+  try {
+    const rawArtists = await getArtists()
+    if (Array.isArray(rawArtists)) {
+      for (let a of rawArtists) {
+        if (authStore.user) {
+          try {
+            const { is_following } = await checkFollowStatus(a.id)
+            a.isFollowing = is_following
+          } catch {
+            a.isFollowing = false
+          }
+        } else {
+          a.isFollowing = false
+        }
+      }
+      artists.value = rawArtists.map(a => ({
+        id: a.id,
+        name: a.name || 'Anonymous Artist',
+        category: a.category || 'Creator',
+        followers: a.followers || 0,
+        avatar: a.avatar ? (a.avatar.startsWith('http') ? a.avatar : `http://localhost:5000${a.avatar}`) : null,
+        isFollowing: a.isFollowing
+      }))
+    }
+  } catch (err) {
+    console.error("Failed to fetch artists:", err)
+  }
 })
 
 const filteredCatalogues = computed(() => {
   if (searchType.value === 'artist') return []
-  if (!searchQuery.value) return catalogues.value
+  let filtered = catalogues.value
+  
+  if (selectedCategory.value !== 'All') {
+    filtered = filtered.filter(c => 
+      c.category.toLowerCase().includes(selectedCategory.value.toLowerCase())
+    )
+  }
+  
+  if (!searchQuery.value) return filtered
+  
   const query = searchQuery.value.toLowerCase()
-  return catalogues.value.filter(c => 
+  return filtered.filter(c => 
     c.title.toLowerCase().includes(query) || 
     c.artist.toLowerCase().includes(query)
   )
@@ -209,6 +265,37 @@ async function handleFollow(artist) {
 
 .search-container {
   width: 500px;
+}
+
+.category-tabs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 40px;
+  flex-wrap: wrap;
+}
+
+.tab-btn {
+  padding: 10px 24px;
+  border-radius: 25px;
+  border: 1px solid #e8e0d8;
+  background: white;
+  color: #666;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab-btn:hover {
+  border-color: #C4622D;
+  color: #C4622D;
+}
+
+.tab-btn.active {
+  background: #C4622D;
+  color: white;
+  border-color: #C4622D;
+  box-shadow: 0 4px 12px rgba(196, 98, 45, 0.2);
 }
 
 .search-flex-input {

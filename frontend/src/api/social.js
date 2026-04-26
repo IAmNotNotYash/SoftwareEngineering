@@ -50,10 +50,11 @@ export function getFollowers() {
   return request('/followers')
 }
 
-export async function getPosts({ type = '', artist_id = '' } = {}) {
+export async function getPosts({ type = '', artist_id = '', user_id = '' } = {}) {
   const params = new URLSearchParams()
   if (type) params.set('type', type)
   if (artist_id) params.set('artist_id', artist_id)
+  if (user_id) params.set('user_id', user_id)
   const data = await request(`/posts?${params.toString()}`)
   return data.map(p => ({
     ...p,

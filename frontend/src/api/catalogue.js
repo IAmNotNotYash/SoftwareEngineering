@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost:5000/api/catalogues'
+const API_URL = 'http://127.0.0.1:5000/api/catalogues'
 
 function authHeaders() {
   const token = sessionStorage.getItem('token')
@@ -44,6 +44,10 @@ export function getCatalogues({ status = 'live', artist_id = '', user_id = '', s
   if (search) params.set('search', search)
   const qs = params.toString()
   return request(`${qs ? '?' + qs : ''}`)
+}
+
+export function getCatalogueCategories() {
+  return request('/categories')
 }
 
 // ── Detail (also records a view) ──────────────────────────────────────────────

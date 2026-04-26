@@ -14,6 +14,24 @@ from app.models.social import Follow
 catalogue_bp = Blueprint('catalogue', __name__)
 
 
+# ── ARTIST: Get Unique Categories ─────────────────────────────────────────────
+@catalogue_bp.route('/categories', methods=['GET'])
+def get_unique_categories():
+    # Fetch all unique non-null categories from the database
+    all_cats = db.session.query(Catalogue.category).filter(Catalogue.category != None).all()
+    
+    unique_cats = set()
+    for (cat_str,) in all_cats:
+        if cat_str:
+            # Support comma-separated categories in the string
+            parts = [c.strip() for c in cat_str.split(',') if c.strip()]
+            for p in parts:
+                unique_cats.add(p)
+    
+    return jsonify(sorted(list(unique_cats))), 200
+
+
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 import json
@@ -46,9 +64,15 @@ def _bump_views(catalogue, buyer_id=None):
     """Insert a CatalogueView and increment CatalogueStats.total_views atomically."""
     view = CatalogueView(catalogue_id=catalogue.id, buyer_id=buyer_id)
     db.session.add(view)
-    if catalogue.stats:
+    
+    # Self-healing: ensure stats record exists
+    if not catalogue.stats:
+        stats = CatalogueStats(catalogue_id=catalogue.id, total_views=1)
+        db.session.add(stats)
+    else:
         catalogue.stats.total_views += 1
         catalogue.stats.last_updated = datetime.now(timezone.utc)
+        
     db.session.commit()
 
 
@@ -143,8 +167,9 @@ def list_catalogues():
     artist_id = request.args.get('artist_id', '')
     user_id = request.args.get('user_id', '')
     search = request.args.get('search', '').strip()
+    category = request.args.get('category', '').strip()
     
-    current_app.logger.info(f"DEBUG Catalogues: status={status_filter}, artist_id={artist_id}, user_id={user_id}, search={search}")
+    current_app.logger.info(f"DEBUG Catalogues: status={status_filter}, artist_id={artist_id}, user_id={user_id}, search={search}, category={category}")
 
     q = Catalogue.query
     if status_filter:
@@ -164,6 +189,8 @@ def list_catalogues():
         q = q.filter_by(artist_id=artist_id)
     if search:
         q = q.filter(Catalogue.title.ilike(f'%{search}%'))
+    if category:
+        q = q.filter(Catalogue.category.ilike(f'%{category}%'))
 
     catalogues = q.order_by(Catalogue.published_at.desc()).all()
     current_app.logger.info(f"DEBUG Catalogues: Returning {len(catalogues)} catalogues")
@@ -261,6 +288,7 @@ def create_catalogue():
         status=data.get('status', 'draft'),
         philosophy=data.get('philosophy'),
         artist_note=data.get('artist_note'),
+        category=data.get('category')
     )
 
     if catalogue.status == 'live':
@@ -299,7 +327,7 @@ def update_catalogue(catalogue_id):
 
     data = request.get_json() or {}
     EDITABLE = ['title', 'narrative', 'cover_photo_url', 'theme', 'launch_intent',
-                'philosophy', 'artist_note']
+                'philosophy', 'artist_note', 'category']
     for field in EDITABLE:
         if field in data:
             setattr(catalogue, field, data[field])

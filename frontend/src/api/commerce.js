@@ -137,3 +137,10 @@ export async function updateOrderStatus(orderId, status, note = '') {
     body: JSON.stringify({ status, note })
   })
 }
+
+export async function verifyPayment(orderId, razorpayData) {
+  return request(`/orders/${orderId}/verify`, {
+    method: 'POST',
+    body: JSON.stringify(razorpayData)
+  })
+}

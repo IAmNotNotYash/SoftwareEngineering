@@ -29,6 +29,7 @@ class Catalogue(db.Model):
     )
     philosophy = db.Column(db.Text, nullable=True)
     artist_note = db.Column(db.Text, nullable=True)
+    category = db.Column(db.String(100), nullable=True) # For catalogue types
     published_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=_now)
     updated_at = db.Column(db.DateTime, nullable=False, default=_now, onupdate=_now)
@@ -49,7 +50,8 @@ class Catalogue(db.Model):
         data = {
             'id': self.id,
             'artist_id': self.artist_id,
-            'artist_name': self.artist.brand_name if self.artist else None,
+            'artist_name': self.artist.full_name if self.artist else None,
+            'artist_brand': self.artist.brand_name if self.artist else None,
             'artist_profile_image': self.artist.profile_image_url if self.artist else None,
             'title': self.title,
             'narrative': self.narrative,
@@ -59,6 +61,7 @@ class Catalogue(db.Model):
             'status': self.status,
             'philosophy': self.philosophy,
             'artist_note': self.artist_note,
+            'category': self.category,
             'published_at': self.published_at.isoformat() if self.published_at else None,
             'created_at': self.created_at.isoformat(),
             'updated_at': self.updated_at.isoformat(),

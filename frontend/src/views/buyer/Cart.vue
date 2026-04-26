@@ -8,7 +8,7 @@
         <!-- Cart Items List -->
         <div class="cart-items">
           <div v-for="item in cartStore.items" :key="item.id" class="cart-card">
-            <div class="item-img" :style="{ backgroundImage: `url(${item.image})` }"></div>
+            <div class="item-img" :style="{ backgroundImage: `url(${getImageUrl(item.image)})` }"></div>
             <div class="item-details">
               <h3 class="item-title">{{ item.title }}</h3>
               <p class="item-artist">{{ item.artist }}</p>
@@ -72,6 +72,12 @@ import { useCartStore } from '../../stores/cart.js'
 const cartStore = useCartStore()
 
 onMounted(() => cartStore.loadCart())
+
+const getImageUrl = (url) => {
+  if (!url) return 'https://images.unsplash.com/photo-1544816155-12df9643f363?w=800'
+  if (url.startsWith('http')) return url
+  return `http://localhost:5000${url}`
+}
 </script>
 
 <style scoped>

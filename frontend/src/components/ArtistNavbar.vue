@@ -3,13 +3,17 @@
     <div class="navbar-logo">
       <RouterLink to="/artist/dashboard">
         <img src="../assets/logo1.png" alt="Kala Logo" class="logo-img" v-if="hasLogo" @error="hasLogo = false" />
-        <span class="brand-text">Kala</span> <span class="badge">ARTIST</span>
+        <span class="brand-text">Kala</span>
       </RouterLink>
-      <span class="user-name" v-if="authStore.user">{{ authStore.user.name }}</span>
+      <span class="user-group" v-if="authStore.user">
+        <div v-if="authStore.user?.profile_image_url" class="nav-avatar" :style="{ backgroundImage: `url(${getImageUrl(authStore.user.profile_image_url)})` }"></div>
+        <div v-else class="nav-avatar-placeholder">{{ (authStore.user?.brandName || authStore.user?.name || 'A').charAt(0) }}</div>
+        <span class="user-name">{{ authStore.user.name }}</span>
+      </span>
     </div>
     <div class="navbar-links">
       <RouterLink to="/artist/dashboard" active-class="router-link-active">Dashboard</RouterLink>
-      <RouterLink to="/artist/catalogues" active-class="router-link-active">Catalogues</RouterLink>
+      <RouterLink to="/artist/catalogues" active-class="router-link-active">Catalogues & Stories</RouterLink>
       <RouterLink to="/artist/products" active-class="router-link-active">Products</RouterLink>
       <RouterLink to="/artist/orders" active-class="router-link-active">Orders</RouterLink>
       <RouterLink to="/artist/sendouts" active-class="router-link-active">Subscribers</RouterLink>
@@ -21,7 +25,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth.js'
 
@@ -33,6 +37,15 @@ function handleLogout() {
   authStore.logout()
   router.push('/auth/login')
 }
+
+const getImageUrl = (url) => {
+  if (!url) return ''
+  return url.startsWith('http') ? url : `http://127.0.0.1:5000${url}`
+}
+
+onMounted(() => {
+  authStore.refreshUser()
+})
 </script>
 
 <style scoped>
@@ -147,13 +160,43 @@ function handleLogout() {
   color: #1a1a1a;
 }
 
+.user-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fdf2ed;
+  padding: 4px 12px 4px 6px;
+  border-radius: 30px;
+  border: 1px solid rgba(196, 98, 45, 0.1);
+}
+
 .user-name {
   font-size: 13px;
   font-weight: 600;
   color: #1a1a1a;
-  background: #fdf2ed;
-  padding: 4px 12px;
-  border-radius: 20px;
-  border: 1px solid rgba(196, 98, 45, 0.1);
+}
+
+.nav-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background-size: cover;
+  background-position: center;
+  border: 1px solid #fff;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+.nav-avatar-placeholder {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #C4622D;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  border: 1px solid #fff;
 }
 </style>

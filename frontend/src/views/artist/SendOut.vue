@@ -195,6 +195,30 @@
           </tbody>
         </table>
       </div>
+      <!-- Broadcast Success Modal -->
+      <div v-if="showSuccessModal" class="modal-overlay">
+        <div class="modal-content success-card scale-in">
+          <div class="modal-header">
+            <span class="success-icon">✨</span>
+            <h2>Broadcast Sent!</h2>
+          </div>
+          <p>Your message is on its way to {{ audienceSize }} followers.</p>
+          
+          <div class="link-sharing-section" v-if="selectedCatalogueId">
+            <label>Share this link on Social Media:</label>
+            <div class="copy-input-group">
+              <input type="text" readonly :value="generatedLink" class="copy-field" />
+              <button @click="copyLink" class="copy-btn">
+                {{ copyStatus }}
+              </button>
+            </div>
+          </div>
+
+          <div class="modal-actions">
+            <button class="btn primary-btn" @click="closeModal">Done</button>
+          </div>
+        </div>
+      </div>
     </main>
   </div>
 </template>
@@ -213,19 +237,37 @@ const selectedCatalogueId = ref(null)
 const audienceSize = ref(0)
 const loading = ref(true)
 const searchQuery = ref('')
+const showSuccessModal = ref(false)
+const copyStatus = ref('Copy Link')
+
+const generatedLink = computed(() => {
+  if (!selectedCatalogueId.value) return ''
+  return `http://localhost:5173/buyer/catalogue/${selectedCatalogueId.value}`
+})
+
+const copyLink = async () => {
+  try {
+    await navigator.clipboard.writeText(generatedLink.value)
+    copyStatus.value = 'Copied! ✅'
+    setTimeout(() => { copyStatus.value = 'Copy Link' }, 2000)
+  } catch (err) {
+    console.error("Failed to copy", err)
+  }
+}
+
+const closeModal = () => {
+  showSuccessModal.value = false
+  resetForm()
+}
 
 const catalogues = ref([])
 
 const intents = [
   { emoji: '🚀', label: 'New Launch', value: 'launch' },
-  { emoji: '📦', label: 'Pre-Orders Open', value: 'preorder' },
-  { emoji: '⚡', label: 'Flash Sale', value: 'flash' },
-  { emoji: '🎫', label: 'Exclusive Reveal', value: 'exclusive' },
 ]
 
 const platforms = ref([
   { id: 'email', icon: '✉️', label: 'Email List', active: true },
-  { id: 'tg', icon: '✈️', label: 'Telegram', active: true },
 ])
 
 const broadcastHistory = ref([])
@@ -285,8 +327,7 @@ const sendBroadcast = async () => {
       platforms: platforms.value.filter(p => p.active).map(p => p.id)
     }
     await apiSendBroadcast(payload)
-    alert(`Broadcast successfully sent to ${audienceSize.value} followers!`)
-    resetForm()
+    showSuccessModal.value = true
   } catch (err) {
     alert("Error sending broadcast: " + err.message)
   }
@@ -774,6 +815,111 @@ const sendBroadcast = async () => {
   font-weight: 600;
   color: #C4622D;
   border-top: 1px solid #e8e0d8;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.4);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.modal-content {
+  background: #fff;
+  padding: 40px;
+  border-radius: 20px;
+  width: 100%;
+  max-width: 460px;
+  text-align: center;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+}
+
+.success-icon {
+  font-size: 48px;
+  display: block;
+  margin-bottom: 20px;
+}
+
+.modal-content h2 {
+  font-family: var(--font-heading);
+  margin-bottom: 12px;
+}
+
+.modal-content p {
+  color: #666;
+  margin-bottom: 30px;
+}
+
+.link-sharing-section {
+  text-align: left;
+  background: #fdfaf8;
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid #e8e0d8;
+  margin-bottom: 30px;
+}
+
+.link-sharing-section label {
+  font-size: 12px;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: #888;
+  margin-bottom: 8px;
+  display: block;
+}
+
+.copy-input-group {
+  display: flex;
+  gap: 8px;
+}
+
+.copy-field {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid #e8e0d8;
+  background: #fff;
+  font-size: 13px;
+  color: #C4622D;
+  font-family: monospace;
+}
+
+.copy-btn {
+  padding: 0 16px;
+  background: #1a1a1a;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.copy-btn:hover {
+  background: #333;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: center;
+}
+
+.scale-in {
+  animation: scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
 }
 
 .small-btn {

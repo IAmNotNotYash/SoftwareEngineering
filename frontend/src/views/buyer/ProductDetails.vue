@@ -53,13 +53,8 @@
           </div>
 
           <div class="info-section">
-            <h3>Materials</h3>
-            <p>{{ product.materials }}</p>
-          </div>
-
-          <div class="info-section">
-            <h3>Dimensions</h3>
-            <p>{{ product.dimensions }}</p>
+            <h3>Details</h3>
+            <p>{{ product.details }}</p>
           </div>
 
           <div class="divider"></div>
@@ -98,10 +93,14 @@
             <div class="reviews-list">
               <div v-for="rev in reviews" :key="rev.id" class="review-item">
                 <div class="review-header">
-                  <div class="review-meta">
-                    <strong>{{ rev.buyer_name }}</strong>
-                    <div class="stars">
-                      <span v-for="i in 5" :key="i" :class="{ filled: (rev.rating || 0) >= i }">★</span>
+                  <div class="reviewer-info">
+                    <div v-if="rev.buyer_avatar" class="reviewer-avatar" :style="{ backgroundImage: `url(${getImageUrl(rev.buyer_avatar)})` }"></div>
+                    <div v-else class="reviewer-avatar-placeholder">{{ (rev.buyer_name || 'U').charAt(0) }}</div>
+                    <div class="review-meta">
+                      <strong>{{ rev.buyer_name }}</strong>
+                      <div class="stars">
+                        <span v-for="i in 5" :key="i" :class="{ filled: (rev.rating || 0) >= i }">★</span>
+                      </div>
                     </div>
                   </div>
                   <span>{{ new Date(rev.created_at).toLocaleDateString() }}</span>
@@ -164,6 +163,14 @@ onMounted(async () => {
 
 async function handleAddToCart() {
   if (!product.value) return
+  
+  if (!authStore.user || authStore.user.role !== 'buyer') {
+    alert(authStore.user?.role === 'artist' 
+      ? 'Artists cannot purchase items. Please log in with a Buyer account.' 
+      : 'Please log in to add this item to your cart.')
+    return
+  }
+
   addingToCart.value = true
   try {
     await cartStore.addItem(product.value.id)
@@ -196,6 +203,11 @@ async function submitReview() {
   } finally {
     submittingReview.value = false
   }
+}
+
+const getImageUrl = (url) => {
+  if (!url) return ''
+  return url.startsWith('http') ? url : `http://localhost:5000${url}`
 }
 </script>
 
@@ -510,14 +522,43 @@ async function submitReview() {
   margin-bottom: 12px;
 }
 
+.reviewer-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.reviewer-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-size: cover;
+  background-position: center;
+  border: 1px solid #eee;
+}
+
+.reviewer-avatar-placeholder {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #f0f0f0;
+  color: #888;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  border: 1px solid #eee;
+}
+
 .review-meta {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .review-meta strong {
-  font-size: 15px;
+  font-size: 14px;
   color: #1a1a1a;
 }
 

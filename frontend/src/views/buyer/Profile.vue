@@ -12,6 +12,25 @@
     </div>
 
     <div class="profile-content" v-else>
+      <!-- Avatar Section -->
+      <section class="profile-section avatar-section">
+        <div class="avatar-container">
+          <div v-if="user?.profile_image_url" class="avatar-large" :style="{ backgroundImage: `url(${getImageUrl(user.profile_image_url)})` }"></div>
+          <div v-else class="avatar-large-placeholder">{{ (user?.full_name || user?.name || 'U').charAt(0) }}</div>
+          
+          <div class="avatar-actions">
+            <h2>{{ user?.full_name || user?.name }}</h2>
+            <p>{{ user?.email }}</p>
+            <div class="upload-controls">
+              <button @click="$refs.fileInput.click()" class="upload-btn" :disabled="uploading">
+                {{ uploading ? 'Uploading...' : 'Change Photo' }}
+              </button>
+              <input type="file" ref="fileInput" @change="onFileChange" hidden accept="image/*" />
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- Personal Info Section -->
       <section class="profile-section">
         <div class="section-header">
@@ -97,6 +116,7 @@ import BuyerNavbar from '../../components/BuyerNavbar.vue'
 import { useAuthStore } from '../../stores/auth.js'
 import { useCartStore } from '../../stores/cart.js'
 import { getOrders } from '../../api/commerce.js'
+import { getProfile, updateProfile, uploadProfileImage } from '../../api/auth.js'
 
 const authStore = useAuthStore()
 const cartStore = useCartStore()
@@ -113,19 +133,16 @@ const editForm = ref({
   phone: ''
 })
 
+const uploading = ref(false)
+const fileInput = ref(null)
+
 const fetchProfile = async () => {
   try {
-    const token = sessionStorage.getItem('token')
-    
-    // 1. Load Profile
-    const res = await fetch('http://127.0.0.1:5000/api/auth/profile', {
-      headers: { 'Authorization': `Bearer ${token}` }
-    })
-    if (res.ok) {
-      user.value = await res.json()
-    }
+    // 1. Load Profile via API helper
+    user.value = await getProfile()
     
     // 2. Load Following List
+    const token = sessionStorage.getItem('token')
     const followRes = await fetch('http://127.0.0.1:5000/api/social/following', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
@@ -210,6 +227,22 @@ const joinDateStr = computed(() => {
   return new Date(user.value.created_at).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' })
 })
 
+const onFileChange = async (event) => {
+  const file = event.target.files[0]
+  if (!file) return
+  
+  uploading.value = true
+  try {
+    await uploadProfileImage(file)
+    await fetchProfile()
+    alert('Profile picture updated!')
+  } catch (err) {
+    alert('Failed to upload image: ' + err.message)
+  } finally {
+    uploading.value = false
+  }
+}
+
 const getImageUrl = (url) => {
   if (!url) return ''
   return url.startsWith('http') ? url : `http://localhost:5000${url}`
@@ -276,6 +309,70 @@ const getImageUrl = (url) => {
   padding: 32px;
   border: 1px solid #eee;
   box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+}
+
+.avatar-section {
+  background: linear-gradient(to right, #ffffff, #faf8f6);
+}
+
+.avatar-container {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+.avatar-large {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background-size: cover;
+  background-position: center;
+  border: 4px solid #fff;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.avatar-large-placeholder {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: #fdf2ed;
+  color: #C4622D;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Playfair Display', serif;
+  font-size: 40px;
+  font-weight: 700;
+  border: 4px solid #fff;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+}
+
+.avatar-actions h2 {
+  margin-bottom: 4px !important;
+}
+
+.avatar-actions p {
+  color: #888;
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.upload-btn {
+  background: white;
+  border: 1px solid #e8e0d8;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #C4622D;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.upload-btn:hover {
+  background: #C4622D;
+  color: white;
+  border-color: #C4622D;
 }
 
 .profile-section h2 {

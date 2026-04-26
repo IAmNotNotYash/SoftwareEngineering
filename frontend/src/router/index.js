@@ -54,10 +54,10 @@ const routes = [
   { path: '/buyer/explore',      component: BuyerExplore, meta: { requiresAuth: true, role: 'buyer' } },
   { path: '/buyer/orders',       component: BuyerOrders, meta: { requiresAuth: true, role: 'buyer' } },
   { path: '/buyer/cart',         component: BuyerCart, meta: { requiresAuth: true, role: 'buyer' } },
-  { path: '/buyer/catalogue/:id',component: BuyerCatalogue, meta: { requiresAuth: true, role: 'buyer' } },
-  { path: '/buyer/product/:id',  component: BuyerProductDetails, meta: { requiresAuth: true, role: 'buyer' } },
-  { path: '/buyer/insight/:id',  component: BuyerInsight, meta: { requiresAuth: true, role: 'buyer' } },
-  { path: '/buyer/artist/:id',   component: BuyerArtist, meta: { requiresAuth: true, role: 'buyer' } },
+  { path: '/buyer/catalogue/:id',component: BuyerCatalogue },
+  { path: '/buyer/product/:id',  component: BuyerProductDetails },
+  { path: '/buyer/insight/:id',  component: BuyerInsight },
+  { path: '/buyer/artist/:id',   component: BuyerArtist },
   { path: '/buyer/checkout',     component: BuyerCheckout, meta: { requiresAuth: true, role: 'buyer' } },
   { path: '/buyer/following',    component: BuyerFollowing, meta: { requiresAuth: true, role: 'buyer' } },
   { path: '/buyer/profile',      component: BuyerProfile, meta: { requiresAuth: true, role: 'buyer' } },
@@ -71,6 +71,7 @@ const routes = [
   { path: '/artist/sendouts',     component: ArtistSendOuts, meta: { requiresAuth: true, role: 'artist' }  },
   { path: '/artist/orders',     component: ArtistOrders, meta: { requiresAuth: true, role: 'artist' }  },
   { path: '/artist/story',     component: ArtistStory, meta: { requiresAuth: true, role: 'artist' }  },
+  { path: '/artist/edit-story/:id', component: ArtistStory, meta: { requiresAuth: true, role: 'artist' }  },
   { path: '/artist/profile',     component: () => import('../views/artist/Profile.vue'), meta: { requiresAuth: true, role: 'artist' } },
 
   // Default redirect
@@ -84,28 +85,16 @@ const router = createRouter({
 
 // Global Navigation Guard
 router.beforeEach((to) => {
-  // DEV PURPOSES: Automatically set artist session if no token is found
-  if (!sessionStorage.getItem('token')) {
-    sessionStorage.setItem('token', 'dev-artist-token');
-    sessionStorage.setItem('user', JSON.stringify({ 
-      id: 'dev-artist-id', 
-      email: 'test@artist.com', 
-      role: 'artist',
-      full_name: 'Test Artist',
-      brand_name: 'Test Brand'
-    }));
-  }
-
-  // To avoid circular dependency during store init, we get sessionStorage directly
   const token = sessionStorage.getItem('token')
   const user = JSON.parse(sessionStorage.getItem('user') || 'null')
 
+  // 1. Handle Protected Routes
   if (to.meta.requiresAuth && !token) {
     return { path: '/auth/login' }
   }
 
+  // 2. Prevent role mismatch (Artists can't see buyer dashboard/orders, etc)
   if (to.meta.role && user && user.role !== to.meta.role) {
-    // Redirect to correct dashboard
     if (user.role === 'admin') return { path: '/admin/dashboard' }
     if (user.role === 'artist') return { path: '/artist/dashboard' }
     if (user.role === 'buyer') return { path: '/buyer/dashboard' }

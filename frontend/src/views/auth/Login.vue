@@ -7,31 +7,8 @@
         <h1 class="showcase-title">Continue your journey with independent craft.</h1>
         <p class="showcase-copy">
           Sign in to browse curated catalogues, track your orders, and keep your favorite
-          artists close. Placeholder credentials can be used for now.
+          artists close.
         </p>
-
-        <div class="showcase-card">
-          <div class="showcase-label">Demo Access</div>
-          <div class="credential-row">
-            <span>Email</span>
-            <strong>buyer@example.com</strong>
-          </div>
-          <div class="credential-row">
-            <span>Password</span>
-            <strong>password123</strong>
-          </div>
-        </div>
-        <div class="showcase-card">
-          <div class="showcase-label">Demo Access</div>
-          <div class="credential-row">
-            <span>Email</span>
-            <strong>seller@example.com</strong>
-          </div>
-          <div class="credential-row">
-            <span>Password</span>
-            <strong>password123</strong>
-          </div>
-        </div>
       </section>
 
       <section class="auth-panel">

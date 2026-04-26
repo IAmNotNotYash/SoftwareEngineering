@@ -28,6 +28,15 @@ def list_broadcasts():
     broadcasts = Broadcast.query.filter_by(artist_id=artist.id).order_by(Broadcast.created_at.desc()).all()
     return jsonify([b.to_dict() for b in broadcasts]), 200
 
+from flask_mail import Message
+from app import db, mail
+from threading import Thread
+
+# Helper to send email in a separate thread to avoid blocking the request
+def send_async_email(app, msg):
+    with app.app_context():
+        mail.send(msg)
+
 @communication_bp.route('/broadcasts', methods=['POST'])
 @jwt_required()
 def send_broadcast():
@@ -38,8 +47,7 @@ def send_broadcast():
     artist = ArtistProfile.query.filter_by(user_id=identity['id']).first()
     data = request.get_json()
     
-    # In a real app, this would queue emails/SMS etc.
-    # For now, we record it and mark it as 'sent' immediately.
+    # Save broadcast to history
     broadcast = Broadcast(
         artist_id=artist.id,
         catalogue_id=data.get('catalogue_id'),
@@ -51,6 +59,45 @@ def send_broadcast():
     )
     
     db.session.add(broadcast)
+    
+    # 1. Fetch followers to get their emails
+    from app.models.user import User
+    followers = Follow.query.filter_by(artist_id=artist.id).all()
+    
+    if followers and 'email' in data.get('platforms', []):
+        recipient_emails = [f.buyer.user.email for f in followers if f.buyer and f.buyer.user]
+        
+        if recipient_emails:
+            from flask import current_app
+            app = current_app._get_current_object()
+            sender_email = app.config.get('MAIL_DEFAULT_SENDER') or app.config.get('MAIL_USERNAME')
+            
+            if not sender_email or not app.config.get('MAIL_PASSWORD'):
+                print("❌ ERROR: Email configuration is missing! Please check MAIL_USERNAME and MAIL_PASSWORD in your .env file.")
+                return jsonify({'error': 'Email service not configured on server'}), 500
+
+            # Prepare Email
+            subject = f"Kala Update: {data.get('intent', 'News')} from {artist.brand_name or artist.full_name}"
+            # Set sender as: "Brand Name <platform-email@gmail.com>"
+            sender = (f"{artist.brand_name or artist.full_name}", sender_email)
+            
+            # Construct the message body
+            body_text = f"Hello from {artist.brand_name or artist.full_name}!\n\n{data.get('message')}\n"
+            
+            # Add catalogue link if present
+            cat_id = data.get('catalogue_id')
+            if cat_id:
+                body_text += f"\n👉 View the full Catalogue here: http://localhost:5173/buyer/catalogue/{cat_id}\n"
+                
+            body_text += "\nBest,\nTeam Kala"
+            
+            msg = Message(subject, sender=sender, recipients=recipient_emails)
+            msg.body = body_text
+            
+            print(f"DEBUG: Processing broadcast from {sender_email} to {len(recipient_emails)} followers...")
+            # Send in background thread
+            Thread(target=send_async_email, args=(app, msg)).start()
+
     db.session.commit()
     return jsonify(broadcast.to_dict()), 201
 

@@ -14,9 +14,9 @@
     <div v-else class="artist-grid">
       <div v-for="artist in followedArtists" :key="artist.id" class="artist-card">
         <router-link :to="`/buyer/artist/${artist.id}`" class="card-link">
-          <img :src="artist.profile_image_url || artist.avatar || 'https://via.placeholder.com/110'" :alt="artist.brand_name || artist.name" class="artist-avatar" />
+          <img :src="getImageUrl(artist.profile_image_url || artist.avatar) || 'https://via.placeholder.com/110'" :alt="artist.full_name || artist.name || artist.brand_name" class="artist-avatar" />
           <div class="artist-info">
-            <h3 class="artist-name">{{ artist.brand_name || artist.name || artist.full_name }}</h3>
+            <h3 class="artist-name">{{ artist.full_name || artist.name || artist.brand_name }}</h3>
             <p class="artist-category">{{ artist.location || 'Artisan' }}</p>
             <p class="artist-followers">{{ artist.follower_count || 0 }} followers</p>
           </div>
@@ -61,6 +61,11 @@ const unfollow = async (id) => {
   } catch (e) {
     alert(e.message)
   }
+}
+
+const getImageUrl = (url) => {
+  if (!url) return ''
+  return url.startsWith('http') ? url : `http://localhost:5000${url}`
 }
 </script>
 

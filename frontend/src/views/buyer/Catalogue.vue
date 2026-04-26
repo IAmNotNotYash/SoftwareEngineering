@@ -4,13 +4,18 @@
     
     <div v-if="catalogue" class="catalogue-wrapper">
       <!-- Hero Header -->
-      <div class="hero-section" :style="{ backgroundImage: `url(${catalogue.cover_photo_url})` }">
+      <div class="hero-section" :style="{ backgroundImage: `url(${resolveURL(catalogue.cover_photo_url)})` }">
         <div class="hero-overlay">
           <div class="hero-content">
             <div class="meta-date">{{ catalogue.published_at ? new Date(catalogue.published_at).toLocaleDateString('en-IN', { year:'numeric', month:'long', day:'numeric' }) : '' }}</div>
             <h1 class="hero-title">{{ catalogue.title }}</h1>
+            <div class="catalogue-categories" v-if="catalogue.category">
+              <span v-for="cat in catalogue.category.split(',').filter(c => c.trim())" :key="cat" class="cat-pill">
+                {{ cat.trim() }}
+              </span>
+            </div>
             <div class="artist-badge">
-              <div class="artist-avatar" :style="{ backgroundImage: `url(${catalogue.artist_profile_image})` }"></div>
+              <div class="artist-avatar" :style="{ backgroundImage: `url(${resolveURL(catalogue.artist_profile_image)})` }"></div>
               <span>By <strong>{{ catalogue.artist_name }}</strong></span>
             </div>
           </div>
@@ -20,17 +25,35 @@
       <!-- Main Content Container -->
       <div class="page-container">
         
-        <!-- Philosophy and Artist Note -->
-        <div class="story-details">
-          <div class="philosophy-section">
-            <h2 class="section-title">Philosophy</h2>
-            <p class="body-text">{{ catalogue.philosophy }}</p>
-          </div>
-          
+        <!-- 1. Artist Note & Stories Top Section -->
+        <div class="story-details" style="margin-bottom: 40px;">
           <div class="artist-note-section" v-if="catalogue.artist_note">
             <div class="note-box">
               <h3 class="note-title">Artist's Note</h3>
               <p class="note-text">"{{ catalogue.artist_note }}"</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stories List -->
+        <div v-if="catalogue.stories?.length" class="catalogue-stories-top">
+          <div class="stories-container">
+            <div v-for="story in catalogue.stories" :key="story.id" class="story-item card" style="margin-bottom: 40px;">
+              <div class="story-header" style="padding: 20px 30px; border-bottom: 1px solid #f5f0eb;">
+                <h3 class="story-title-display" style="margin:0; font-family: 'Playfair Display', serif; font-size: 24px;">{{ story.title }}</h3>
+              </div>
+              <div v-if="story.cover_image_url" class="story-media" :style="{ backgroundImage: `url(${resolveURL(story.cover_image_url)})` }">
+                <button class="story-like-btn" @click="toggleStoryLike(story)" :class="{ liked: story.has_liked }">
+                  {{ story.has_liked ? '❤' : '♡' }}
+                </button>
+              </div>
+              <div class="story-content" style="padding: 32px;">
+                <div class="story-body html-content" v-html="truncateHTML(story.body, 180)"></div>
+                <div style="margin-top: 16px; display: flex; justify-content: space-between; align-items: center;">
+                  <RouterLink :to="`/buyer/insight/${story.id}`" class="read-full-link">Read Full Story →</RouterLink>
+                  <div class="story-footer" style="font-size: 13px; color: #888; font-weight: 600;">{{ story.likes_count }} people loved this</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -42,56 +65,10 @@
           <span style="font-size:13px; color:#888;">{{ catalogue.stats?.total_views || 0 }} views · {{ catalogue.stats?.total_likes || 0 }} likes</span>
         </div>
 
-        <!-- Integrated Stories: Vertical Scroll -->
-        <div class="stories-vertical-section" v-if="catalogue.stories?.length">
-          <h2 class="section-title">Catalogue Stories</h2>
-          <div class="vertical-scroll-container">
-            <div v-for="story in catalogue.stories" :key="story.id" class="story-frame">
-              <div class="frame-media" :style="{ backgroundImage: `url(${story.cover_image_url})` }">
-                <button class="frame-like-btn" @click="toggleStoryLike(story)" :class="{ liked: story.has_liked }">
-                  {{ story.has_liked ? '❤' : '♡' }}
-                </button>
-              </div>
-              <div class="frame-content">
-                <p class="frame-body">{{ story.body }}</p>
-                <div class="frame-footer">{{ story.likes_count }} people loved this frame</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
         <div class="divider"></div>
 
-        <!-- Reviews Section -->
-        <div class="reviews-section">
-          <h2 class="section-title">Community Thoughts</h2>
-          
-          <div v-if="authStore.user?.role === 'buyer'" class="review-form card">
-            <h4>Leave a Thought</h4>
-            <textarea v-model="newReviewBody" placeholder="What do you think of this collection?" rows="3"></textarea>
-            <div class="form-actions">
-              <button class="btn-primary" @click="submitReview" :disabled="submittingReview">Post Comment</button>
-            </div>
-          </div>
-
-          <div class="reviews-list">
-            <div v-for="rev in reviews" :key="rev.id" class="review-item">
-              <div class="review-header">
-                <strong>{{ rev.buyer_name }}</strong>
-                <span>{{ new Date(rev.created_at).toLocaleDateString() }}</span>
-              </div>
-              <p>{{ rev.body }}</p>
-            </div>
-            <div v-if="!reviews.length" class="no-reviews">
-              No thoughts shared yet. Be the first!
-            </div>
-          </div>
-        </div>
-
-        <div class="divider"></div>
-
-        <!-- Products in Catalogue -->
-        <div class="catalogue-products">
+        <!-- 2. Products Next -->
+        <div class="catalogue-products" style="margin-bottom: 80px;">
           <div class="products-header">
             <h2 class="section-title">Pieces in this Catalogue</h2>
             <div class="catalogue-search">
@@ -107,7 +84,7 @@
           <div class="products-grid" v-if="filteredProducts.length > 0">
             <div v-for="product in filteredProducts" :key="product.id" class="product-card">
               <RouterLink :to="`/buyer/product/${product.id}`" style="display: block;">
-                <div class="product-image" :style="{ backgroundImage: `url(${product.image})` }"></div>
+                <div class="product-image" :style="{ backgroundImage: `url(${resolveURL(product.image)})` }"></div>
               </RouterLink>
               <div class="product-info">
                 <div class="product-artist">{{ product.artist_name }}</div>
@@ -125,6 +102,39 @@
           </div>
           <div v-else class="no-products-found">
             No products match your search within this catalogue.
+          </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- 3. Community Thoughts Last -->
+        <div class="reviews-section">
+          <h2 class="section-title">Community Thoughts</h2>
+          
+          <div v-if="authStore.user?.role === 'buyer'" class="review-form card">
+            <h4>Leave a Thought</h4>
+            <textarea v-model="newReviewBody" placeholder="What do you think of this collection?" rows="3"></textarea>
+            <div class="form-actions">
+              <button class="btn-primary" @click="submitReview" :disabled="submittingReview">Post Comment</button>
+            </div>
+          </div>
+
+          <div class="reviews-list">
+            <div v-for="rev in reviews" :key="rev.id" class="review-item">
+              <div class="comment-avatar" :style="rev.buyer_avatar ? { backgroundImage: `url(${resolveURL(rev.buyer_avatar)})` } : { background: '#fdf2ed' }">
+                <span v-if="!rev.buyer_avatar">{{ rev.buyer_name?.charAt(0) }}</span>
+              </div>
+              <div class="comment-content-wrap">
+                <div class="review-header">
+                  <strong>{{ rev.buyer_name }}</strong>
+                  <span>{{ new Date(rev.created_at).toLocaleDateString() }}</span>
+                </div>
+                <p>{{ rev.body }}</p>
+              </div>
+            </div>
+            <div v-if="!reviews.length" class="no-reviews">
+              No thoughts shared yet. Be the first!
+            </div>
           </div>
         </div>
       </div>
@@ -201,6 +211,12 @@ async function toggleLike() {
 }
 
 async function handleAddToCart(product) {
+  if (!authStore.user || authStore.user.role !== 'buyer') {
+    alert(authStore.user?.role === 'artist' 
+      ? 'Artists cannot purchase items. Please log in with a Buyer account.' 
+      : 'Please log in to add this piece to your cart.')
+    return
+  }
   addingId.value = product.id
   try { await cartStore.addItem(product.id) }
   catch (e) { alert(e.message) }
@@ -239,6 +255,20 @@ async function submitReview() {
   } finally {
     submittingReview.value = false
   }
+}
+
+function resolveURL(url) {
+  if (!url) return ''
+  if (url.startsWith('http')) return url
+  return `http://127.0.0.1:5000${url.startsWith('/') ? '' : '/'}${url}`
+}
+
+function truncateHTML(html, limit) {
+  if (!html) return ''
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  const text = doc.body.textContent || ""
+  if (text.length <= limit) return text
+  return text.substring(0, limit) + '...'
 }
 </script>
 
@@ -282,7 +312,25 @@ async function submitReview() {
   font-size: 48px;
   font-weight: 600;
   line-height: 1.2;
+  margin-bottom: 12px;
+}
+
+.catalogue-categories {
+  display: flex;
+  gap: 8px;
   margin-bottom: 24px;
+}
+
+.cat-pill {
+  background: rgba(255,255,255,0.15);
+  backdrop-filter: blur(8px);
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.2);
+  text-transform: capitalize;
 }
 
 .artist-badge {
@@ -323,19 +371,18 @@ async function submitReview() {
 }
 
 /* Stories Vertical Scroll Styles */
-.stories-vertical-section {
+.catalogue-chronicles {
   margin-bottom: 60px;
 }
 
-.vertical-scroll-container {
+.stories-container {
   display: flex;
   flex-direction: column;
   gap: 40px;
-  max-width: 600px;
-  margin: 0 auto;
+  max-width: 800px; /* Increased for better reading */
 }
 
-.story-frame {
+.story-item {
   background: white;
   border-radius: 12px;
   overflow: hidden;
@@ -343,24 +390,25 @@ async function submitReview() {
   box-shadow: 0 4px 20px rgba(0,0,0,0.03);
 }
 
-.frame-media {
-  aspect-ratio: 9/16;
+.story-media {
+  aspect-ratio: 16 / 9; /* Landscape aspect ratio */
   background-size: cover;
   background-position: center;
   position: relative;
+  max-height: 400px;
 }
 
-.frame-like-btn {
+.story-like-btn {
   position: absolute;
   bottom: 20px;
   right: 20px;
   background: rgba(255,255,255,0.2);
   backdrop-filter: blur(8px);
   border: 1px solid rgba(255,255,255,0.4);
-  width: 50px;
-  height: 50px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
-  font-size: 24px;
+  font-size: 20px;
   color: white;
   cursor: pointer;
   display: flex;
@@ -369,27 +417,27 @@ async function submitReview() {
   transition: all 0.2s;
 }
 
-.frame-like-btn.liked {
+.story-like-btn.liked {
   background: white;
   color: #ff4d4d;
   border-color: white;
 }
 
-.frame-content {
-  padding: 24px;
+.html-content :deep(p) {
+  margin-bottom: 1rem;
 }
 
-.frame-body {
-  font-size: 16px;
-  line-height: 1.6;
-  color: #333;
-  margin: 0 0 12px 0;
+.html-content :deep(ol), .html-content :deep(ul) {
+  margin-left: 20px;
+  margin-bottom: 1rem;
 }
 
-.frame-footer {
-  font-size: 13px;
-  color: #888;
-  font-weight: 600;
+.html-content :deep(blockquote) {
+  border-left: 3px solid #C4622D;
+  padding-left: 16px;
+  font-style: italic;
+  color: #666;
+  margin: 1.5rem 0;
 }
 
 .philosophy-section {
@@ -398,6 +446,23 @@ async function submitReview() {
 
 .artist-note-section {
   flex: 1;
+}
+
+.empty-story-space {
+  flex: 1.5;
+}
+
+.story-placeholder {
+  background: #fdfaf8;
+  border: 1px dashed #e8e0d8;
+  border-radius: 12px;
+  padding: 40px;
+  text-align: center;
+  color: #888;
+  font-style: italic;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .section-title {
@@ -646,8 +711,30 @@ async function submitReview() {
 }
 
 .review-item {
-  padding-bottom: 20px;
+  padding-bottom: 24px;
   border-bottom: 1px solid #f5f0eb;
+  display: flex;
+  gap: 16px;
+}
+
+.comment-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background-size: cover;
+  background-position: center;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Playfair Display', serif;
+  font-weight: 700;
+  color: #C4622D;
+  border: 1px solid #f5f0eb;
+}
+
+.comment-content-wrap {
+  flex: 1;
 }
 
 .review-header {
@@ -678,5 +765,19 @@ async function submitReview() {
   padding: 40px;
   color: #888;
   font-style: italic;
+}
+
+.read-full-link {
+  color: #C4622D;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 14px;
+  transition: all 0.2s;
+  border-bottom: 2px solid transparent;
+}
+
+.read-full-link:hover {
+  border-bottom-color: #C4622D;
+  padding-bottom: 2px;
 }
 </style>

@@ -35,6 +35,7 @@ class Post(db.Model):
     cover_image_url = db.Column(db.String(500))
     is_published = db.Column(db.Boolean, default=False)
     published_at = db.Column(db.DateTime)
+    views_count = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
@@ -46,7 +47,8 @@ class Post(db.Model):
         return {
             'id': self.id,
             'artist_id': self.artist_id,
-            'artist_name': self.artist.brand_name if self.artist else '',
+            'artist_name': self.artist.full_name if self.artist else '',
+            'artist_avatar': self.artist.profile_image_url if self.artist else None,
             'catalogue_id': self.catalogue_id,
             'type': self.type,
             'title': self.title,
@@ -54,6 +56,7 @@ class Post(db.Model):
             'cover_image_url': self.cover_image_url,
             'is_published': self.is_published,
             'published_at': self.published_at.isoformat() if self.published_at else None,
+            'views_count': self.views_count,
             'created_at': self.created_at.isoformat(),
             'likes_count': self.likes.count()
         }
@@ -81,7 +84,7 @@ class Review(db.Model):
 
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     buyer_id = db.Column(db.String(36), db.ForeignKey('buyer_profiles.id'), nullable=False)
-    target_type = db.Column(db.Enum('product', 'catalogue', name='review_target_type'), nullable=False)
+    target_type = db.Column(db.Enum('product', 'catalogue', 'post', name='review_target_type'), nullable=False)
     target_id = db.Column(db.String(36), nullable=False) # Polymorphic
     rating = db.Column(db.Integer) # 1-5
     body = db.Column(db.Text, nullable=False)
@@ -96,6 +99,7 @@ class Review(db.Model):
             'id': self.id,
             'buyer_id': self.buyer_id,
             'buyer_name': self.buyer.full_name if self.buyer else '',
+            'buyer_avatar': self.buyer.profile_image_url if self.buyer else None,
             'target_type': self.target_type,
             'target_id': self.target_id,
             'rating': self.rating,

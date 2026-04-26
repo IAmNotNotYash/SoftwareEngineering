@@ -33,6 +33,17 @@ from app.models.commerce import (
     OrderTrackingEvent,
 )
 from app.utils.analytics import update_revenue_analytics
+import razorpay
+
+def _get_razorpay_client():
+    key_id = current_app.config.get('RAZORPAY_KEY_ID')
+    key_secret = current_app.config.get('RAZORPAY_KEY_SECRET')
+    
+    if not key_id or not key_secret:
+        current_app.logger.error("Razorpay Keys are missing from configuration!")
+        raise ValueError("Payment configuration missing. Please check .env and restart server.")
+        
+    return razorpay.Client(auth=(key_id, key_secret))
 
 
 commerce_bp = Blueprint('commerce', __name__)
@@ -116,13 +127,14 @@ def list_products():
 # ---------------------------------------------------------------------------
 @commerce_bp.route('/artists', methods=['GET'])
 def list_artists():
+    from app.models.social import Follow
     artists = ArtistProfile.query.filter_by(verification_status='approved').all()
     return jsonify([{
         'id': a.id,
-        'name': a.brand_name,
+        'name': a.full_name,
         'category': a.location or 'Artisan',
         'avatar': a.profile_image_url,
-        'followers': 0 # To be replaced with real count (computed from Follow table)
+        'followers': Follow.query.filter_by(artist_id=a.id).count()
     } for a in artists]), 200
 
 
@@ -142,15 +154,18 @@ def get_artist(artist_id):
     
     # Get products
     products = Product.query.filter_by(artist_id=artist.id, is_deleted=False).all()
+    
+    from app.models.social import Follow
+    follower_count = Follow.query.filter_by(artist_id=artist.id).count()
 
     return jsonify({
         'id': artist.id,
-        'name': artist.brand_name,
+        'name': artist.full_name,
         'location': artist.location,
         'bio': artist.bio,
         'avatar': artist.profile_image_url,
         'cover_image_url': artist.cover_image_url,
-        'followers': 0, # Placeholder
+        'followers': follower_count,
         'catalogues': [c.to_dict() for c in catalogues],
         'products': [p.to_dict() for p in products]
     }), 200
@@ -171,7 +186,7 @@ def get_product(product_id):
     if product.artist:
         data['artist'] = {
             'id': product.artist.id,
-            'name': product.artist.brand_name,
+            'name': product.artist.full_name,
             'avatar': product.artist.profile_image_url,
         }
     return jsonify(data), 200
@@ -209,8 +224,7 @@ def create_product():
         artist_id=artist.id,
         title=title,
         description=data.get('description'),
-        materials=data.get('materials'),
-        dimensions=data.get('dimensions'),
+        details=data.get('details'),
         price=price,
         category=data.get('category'),
         in_stock=data.get('in_stock', True),
@@ -254,7 +268,7 @@ def update_product(product_id):
         return jsonify({'error': 'Product not found or not owned by you'}), 404
 
     data = request.get_json()
-    updatable = ['title', 'description', 'materials', 'dimensions', 'price', 'category', 'in_stock', 'catalogue_id']
+    updatable = ['title', 'description', 'details', 'price', 'category', 'in_stock', 'catalogue_id']
     for field in updatable:
         if field in data:
             setattr(product, field, data[field])
@@ -661,7 +675,7 @@ def place_order():
             product_id=product.id,
             product_title_snapshot=product.title,
             product_image_snapshot=image_url,
-            artist_name_snapshot=product.artist.brand_name if product.artist else '',
+            artist_name_snapshot=product.artist.full_name if product.artist else '',
             price_at_purchase=product.price,
             quantity=cart_item.quantity,
         )
@@ -675,11 +689,79 @@ def place_order():
     )
     db.session.add(tracking_event)
 
+    # Razorpay Integration: Create Order
+    try:
+        client = _get_razorpay_client()
+        # Amount in paise (multiply INR by 100)
+        razorpay_order = client.order.create({
+            "amount": int(total * 100),
+            "currency": "INR",
+            "receipt": order.id,
+            "payment_capture": 1 # auto capture
+        })
+        order.razorpay_order_id = razorpay_order['id']
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Razorpay Order Creation Failed: {str(e)}")
+        return jsonify({'error': f"Failed to initialize payment: {str(e)}"}), 500
+
     # Clear the buyer's cart
     CartItem.query.filter_by(buyer_id=buyer.id).delete()
 
     db.session.commit()
-    return jsonify(order.to_dict(include_items=True, include_tracking=True)), 201
+    
+    res_data = order.to_dict(include_items=True, include_tracking=True)
+    if order.razorpay_order_id:
+        res_data['razorpay_order_id'] = order.razorpay_order_id
+        res_data['razorpay_key_id'] = current_app.config['RAZORPAY_KEY_ID']
+        res_data['amount_paise'] = int(total * 100)
+        
+    return jsonify(res_data), 201
+
+
+@commerce_bp.route('/orders/<string:order_id>/verify', methods=['POST'])
+@jwt_required()
+def verify_payment(order_id):
+    identity = _get_identity()
+    err = _require_role(identity, 'buyer')
+    if err: return err
+
+    order = Order.query.filter_by(id=order_id).first()
+    if not order:
+        return jsonify({'error': 'Order not found'}), 404
+
+    data = request.get_json()
+    rzp_payment_id = data.get('razorpay_payment_id')
+    rzp_order_id = data.get('razorpay_order_id')
+    rzp_signature = data.get('razorpay_signature')
+
+    if not all([rzp_payment_id, rzp_order_id, rzp_signature]):
+        return jsonify({'error': 'Missing payment verification data'}), 400
+
+    try:
+        client = _get_razorpay_client()
+        # verify_payment_signature will raise an error if invalid
+        client.utility.verify_payment_signature({
+            'razorpay_order_id': rzp_order_id,
+            'razorpay_payment_id': rzp_payment_id,
+            'razorpay_signature': rzp_signature
+        })
+
+        # Success - update order
+        order.razorpay_payment_id = rzp_payment_id
+        order.razorpay_signature = rzp_signature
+        order.payment_status = 'paid'
+        # Optional: Advance order status from pending to processing
+        order.status = 'processing'
+        
+        db.session.commit()
+        return jsonify({'status': 'success', 'message': 'Payment verified'}), 200
+
+    except Exception as e:
+        current_app.logger.error(f"Payment Verification Failed: {str(e)}")
+        order.payment_status = 'failed'
+        db.session.commit()
+        return jsonify({'error': 'Payment verification failed'}), 400
 
 
 # ---------------------------------------------------------------------------
@@ -732,7 +814,7 @@ def list_orders():
             orders = [
                 o for o in orders
                 if q in (o.buyer.full_name or '').lower()
-                or q in (o.artist.brand_name or '').lower()
+                or q in (o.artist.full_name or '').lower()
                 or q in o.display_id.lower()
             ]
         return jsonify([o.to_dict(include_items=True) for o in orders]), 200

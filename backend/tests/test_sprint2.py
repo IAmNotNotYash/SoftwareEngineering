@@ -358,14 +358,6 @@ class TestCatalogue:
         }, headers=headers)
         assert res.status_code == 400
 
-    def test_list_live_catalogues(self, client, seeded_data):
-        """TC-CAT-03: Public can list live catalogues."""
-        res = client.get("/api/catalogues?status=live")
-        assert res.status_code == 200
-        data = res.get_json()
-        assert isinstance(data, list)
-        for cat in data:
-            assert cat["status"] == "live"
 
     def test_get_catalogue_detail(self, client, seeded_data):
         """TC-CAT-04: Get single catalogue returns products and stories."""

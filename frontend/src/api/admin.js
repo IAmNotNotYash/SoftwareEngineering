@@ -118,25 +118,37 @@ export async function getOrders() {
 }
 
 // Added this back for Dashboard.vue
+// Replaced hardcoded implementation with real backend fetch
 export async function getPlatformAnalytics() {
-  return {
-    revenueThisMonth: 57600,
-    newSignups: 13,
-    totalOrders: 17,
-    avgOrderValue: 3388,
-    revenueOverTime: [
-      { month: 'Oct', revenue: 58000 },
-      { month: 'Nov', revenue: 62000 },
-      { month: 'Dec', revenue: 61000 },
-      { month: 'Jan', revenue: 67000 },
-      { month: 'Feb', revenue: 75000 },
-      { month: 'Mar', revenue: 97000 },
-    ],
-    ordersByStatus: [
-      { status: 'Delivered', count: 6 },
-      { status: 'Incomplete', count: 8 },
-      { status: 'Cancelled', count: 3 },
-    ],
+  try {
+    const trendData = await getPlatformTrend()
+    const stats = await getDashboardStats()
+    
+    return {
+      revenueThisMonth: trendData.length ? trendData[trendData.length - 1].revenue : 0,
+      newSignups: trendData.length ? trendData[trendData.length - 1].new_signups : 0,
+      totalOrders: stats.totalOrders || 0,
+      avgOrderValue: stats.totalOrders ? Math.round(stats.totalRevenue / stats.totalOrders) : 0,
+      revenueOverTime: trendData.map(t => ({
+        month: t.month,
+        revenue: t.revenue || 0
+      })),
+      ordersByStatus: [
+        { status: 'Delivered', count: stats.deliveredOrders || 0 }, // Backend might need to send this
+        { status: 'Pending', count: stats.pendingOrders || 0 }
+      ],
+    }
+  } catch (e) {
+    console.error("Failed to fetch real platform analytics", e)
+    // Fallback to empty structure to prevent crashes
+    return {
+      revenueThisMonth: 0,
+      newSignups: 0,
+      totalOrders: 0,
+      avgOrderValue: 0,
+      revenueOverTime: [],
+      ordersByStatus: []
+    }
   }
 }
 

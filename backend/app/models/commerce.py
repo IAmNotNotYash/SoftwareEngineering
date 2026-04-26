@@ -14,8 +14,7 @@ class Product(db.Model):
     artist_id = db.Column(db.String(36), db.ForeignKey('artist_profiles.id'), nullable=False)
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text, nullable=True)
-    materials = db.Column(db.Text, nullable=True)
-    dimensions = db.Column(db.String(200), nullable=True)
+    details = db.Column(db.Text, nullable=True)
     price = db.Column(db.Numeric(10, 2), nullable=False)
     category = db.Column(db.String(100), nullable=True)
     in_stock = db.Column(db.Boolean, default=True, nullable=False)
@@ -39,11 +38,10 @@ class Product(db.Model):
         data = {
             'id': self.id,
             'artist_id': self.artist_id,
-            'artist_name': self.artist.brand_name if self.artist else None,
+            'artist_name': self.artist.full_name if self.artist else None,
             'title': self.title,
             'description': self.description,
-            'materials': self.materials,
-            'dimensions': self.dimensions,
+            'details': self.details,
             'price': float(self.price),
             'category': self.category,
             'in_stock': self.in_stock,
@@ -106,7 +104,7 @@ class CartItem(db.Model):
             'id': self.id,
             'product_id': self.product_id,
             'title': p.title if p else None,
-            'artist': p.artist.brand_name if p and p.artist else None,
+            'artist': p.artist.full_name if p and p.artist else None,
             'price': float(p.price) if p else None,
             'image': image_url,
             'quantity': self.quantity,
@@ -131,6 +129,11 @@ class Order(db.Model):
     # JSON snapshot of address and payment at the moment of purchase
     shipping_address_snapshot = db.Column(db.JSON, nullable=False)
     payment_snapshot = db.Column(db.JSON, nullable=False)
+    # Razorpay tracking
+    razorpay_order_id = db.Column(db.String(100), nullable=True)
+    razorpay_payment_id = db.Column(db.String(100), nullable=True)
+    razorpay_signature = db.Column(db.String(200), nullable=True)
+    payment_status = db.Column(db.String(20), default='pending') # pending, paid, failed
     created_at = db.Column(db.DateTime, nullable=False, default=_now)
     updated_at = db.Column(db.DateTime, nullable=False, default=_now, onupdate=_now)
 
@@ -158,7 +161,7 @@ class Order(db.Model):
             'buyer_id': self.buyer_id,
             'artist_id': self.artist_id,
             'buyer_name': self.buyer.full_name if self.buyer else None,
-            'artist_name': self.artist.brand_name if self.artist else None,
+            'artist_name': self.artist.full_name if self.artist else None,
             'status': self.status,
             'subtotal': float(self.subtotal),
             'shipping_cost': float(self.shipping_cost),

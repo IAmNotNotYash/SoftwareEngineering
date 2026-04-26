@@ -5,13 +5,13 @@
     <main class="page-container">
       <div class="composer-card">
         <header class="composer-header">
-          <RouterLink to="/artist/dashboard" class="back-link">← Back to Dashboard</RouterLink>
+          <RouterLink to="/artist/catalogues" class="back-link">← Back to Catalogues & Stories</RouterLink>
           <button 
             class="btn primary-btn" 
             @click="publishStory" 
             :disabled="!title || !content || isPublishing"
           >
-            {{ isPublishing ? 'Publishing...' : 'Publish Story' }}
+            {{ isPublishing ? (storyId ? 'Updating...' : 'Publishing...') : (storyId ? 'Update Story' : 'Publish Story') }}
           </button>
         </header>
 
@@ -40,12 +40,15 @@
             placeholder="Give your story a title..." 
           />
           
-          <textarea 
-            v-model="content" 
-            class="story-content-input" 
-            placeholder="Tell your audience about your crafting process, inspirations, or updates..."
-            rows="10"
-          ></textarea>
+          <div class="form-group quill-wrap">
+            <QuillEditor 
+              v-model:content="content" 
+              contentType="html" 
+              theme="snow" 
+              toolbar="essential"
+              placeholder="Tell your audience about your crafting process, inspirations, or updates..."
+            />
+          </div>
         </div>
       </div>
     </main>
@@ -53,18 +56,39 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import ArtistNavbar from '../../components/ArtistNavbar.vue'
-import { createPost } from '../../api/social.js'
+import { createPost, getPost, updatePost } from '../../api/social.js'
+import { QuillEditor } from '@vueup/vue-quill'
+import '@vueup/vue-quill/dist/vue-quill.snow.css'
 
 const router = useRouter()
+const route = useRoute()
+const storyId = ref(route.params.id || null)
 const title = ref('')
 const content = ref('')
 const coverImage = ref(null) // Public URL
 const coverFile = ref(null) // Real File object
 const fileInput = ref(null)
 const isPublishing = ref(false)
+const isLoading = ref(false)
+
+onMounted(async () => {
+  if (storyId.value) {
+    isLoading.value = true
+    try {
+      const data = await getPost(storyId.value)
+      title.value = data.title
+      content.value = data.body
+      coverImage.value = data.cover_image_url
+    } catch (err) {
+      alert("Failed to load story: " + err.message)
+    } finally {
+      isLoading.value = false
+    }
+  }
+})
 
 const triggerUpload = () => {
   fileInput.value.click()
@@ -103,17 +127,23 @@ const publishStory = async () => {
       }
     }
     
-    // 2. Create the post
-    await createPost({
+    // 2. Create or Update the post
+    const payload = {
       title: title.value,
       body: content.value,
-      cover_image_url: finalCoverUrl,
+      cover_image_url: finalCoverUrl || coverImage.value,
       type: 'story',
       is_published: true
-    })
-    
-    alert("Story successfully published!")
-    router.push('/artist/dashboard')
+    }
+
+    if (storyId.value) {
+      await updatePost(storyId.value, payload)
+      alert("Story updated successfully!")
+    } else {
+      await createPost(payload)
+      alert("Story successfully published!")
+    }
+    router.push('/artist/catalogues')
   } catch (err) {
     alert("Failed to publish: " + err.message)
   } finally {
@@ -230,17 +260,28 @@ const publishStory = async () => {
   color: #ccc;
 }
 
-.story-content-input {
-  width: 100%;
-  border: none;
-  font-family: var(--font-body);
+.quill-wrap {
+  margin-top: 12px;
+}
+
+:deep(.ql-editor) {
+  min-height: 400px;
   font-size: 18px;
-  line-height: 1.7;
+  font-family: 'DM Sans', sans-serif;
   color: #333;
-  outline: none;
+  line-height: 1.8;
   padding: 0;
-  resize: vertical;
-  min-height: 300px;
+}
+
+:deep(.ql-container.ql-snow) {
+  border: none;
+}
+
+:deep(.ql-toolbar.ql-snow) {
+  border: none;
+  border-bottom: 1px solid #f0f0f0;
+  padding: 8px 0;
+  margin-bottom: 24px;
 }
 
 .story-content-input::placeholder {

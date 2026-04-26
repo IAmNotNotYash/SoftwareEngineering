@@ -14,6 +14,28 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function refreshUser() {
+    if (!token.value) return
+    try {
+      const res = await fetch('http://127.0.0.1:5000/api/auth/profile', {
+        headers: { 'Authorization': `Bearer ${token.value}` }
+      })
+      if (res.ok) {
+        const profile = await res.json()
+        // Update user object with the latest profile data
+        const newUser = { 
+          ...user.value, 
+          name: profile.full_name || profile.name || user.value?.name,
+          profile_image_url: profile.profile_image_url 
+        }
+        user.value = newUser
+        sessionStorage.setItem('user', JSON.stringify(newUser))
+      }
+    } catch (e) {
+      console.error("Failed to refresh user profile data", e)
+    }
+  }
+
   function logout() {
     token.value = null
     user.value = null
@@ -23,5 +45,5 @@ export const useAuthStore = defineStore('auth', () => {
 
   const isAuthenticated = () => !!token.value
   
-  return { token, user, setAuth, logout, isAuthenticated }
+  return { token, user, setAuth, logout, isAuthenticated, refreshUser }
 })

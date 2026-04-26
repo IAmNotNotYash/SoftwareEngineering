@@ -30,14 +30,14 @@
         </div>
 
         <div class="artists-grid">
-          <div v-for="artist in artists" :key="artist.name" class="artist-card">
+          <div v-for="artist in artists" :key="artist.id" class="artist-card">
             <div class="artist-avatar" :style="{ backgroundImage: `url(${artist.avatar})` }"></div>
             <div class="artist-info">
               <div class="artist-name">{{ artist.name }}</div>
               <div class="artist-category">{{ artist.category }} • {{ artist.followers }} Followers</div>
               <p class="artist-tagline-text">{{ artist.tagline }}</p>
             </div>
-            <RouterLink to="/auth/register" class="follow-btn">Discover More</RouterLink>
+            <RouterLink :to="'/buyer/artist/' + artist.id" class="follow-btn">Discover More</RouterLink>
           </div>
         </div>
       </section>
@@ -49,12 +49,12 @@
         </div>
 
         <div class="stories-grid">
-          <div v-for="story in stories" :key="story.title" class="story-card" :style="{ backgroundImage: `url(${story.cover})` }">
+          <div v-for="story in stories" :key="story.id" class="story-card" :style="{ backgroundImage: `url(${story.cover})` }">
             <div class="story-overlay">
               <div class="story-date">{{ story.date }}</div>
               <div class="story-title">{{ story.title }}</div>
               <div class="story-artist">by <span>{{ story.artist }}</span></div>
-              <RouterLink to="/auth/register" class="view-story-btn">Read Story</RouterLink>
+              <RouterLink :to="'/buyer/insight/' + story.id" class="view-story-btn">Read Story</RouterLink>
             </div>
           </div>
         </div>
@@ -64,50 +64,86 @@
 </template>
 
 <script setup>
-const artists = [
-  {
-    name: 'Nila Handlooms',
-    category: 'Textiles',
-    tagline: 'Weaving stories into every thread',
-    followers: '1,240',
-    avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=400'
-  },
-  {
-    name: 'Clay & Co.',
-    category: 'Ceramics',
-    tagline: 'Earth, water, fire — shaped by hand',
-    followers: '890',
-    avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=400'
-  },
-  {
-    name: 'The Ink Press',
-    category: 'Printmaking',
-    tagline: 'Block-printed with intention',
-    followers: '2,100',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=400'
-  },
-]
+import { ref, onMounted } from 'vue'
+import { getArtists } from '../../api/commerce.js'
+import { getPosts } from '../../api/social.js'
 
-const stories = [
-  {
-    title: 'The Art of Jamdani Weaving',
-    artist: 'Nila Handlooms',
-    date: '2 Days Ago',
-    cover: 'https://images.unsplash.com/photo-1610701596007-11502861dcfa?auto=format&fit=crop&q=80&w=800'
-  },
-  {
-    title: 'Indigo: From Plant to Fabric',
-    artist: 'Nila Handlooms',
-    date: '1 Week Ago',
-    cover: 'https://images.unsplash.com/photo-1541961017774-22349e4a1262?auto=format&fit=crop&q=80&w=800'
-  },
-  {
-    title: 'From Earth to Table',
-    artist: 'Clay & Co.',
-    date: '2 Weeks Ago',
-    cover: 'https://images.unsplash.com/photo-1620189507195-68309c04c4d0?auto=format&fit=crop&q=80&w=800'
-  },
-]
+const artists = ref([])
+const stories = ref([])
+const loading = ref(true)
+
+const getImageUrl = (path) => {
+  if (!path) return 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=400'
+  if (path.startsWith('http')) return path
+  // Consistent local server address
+  const cleanPath = path.startsWith('/') ? path : `/${path}`
+  return `http://localhost:5000${cleanPath}`
+}
+
+const formatRelativeTime = (dateStr) => {
+  if (!dateStr) return 'Recently'
+  try {
+    const date = new Date(dateStr)
+    const now = new Date()
+    const diffInSeconds = Math.floor((now - date) / 1000)
+    const diffInDays = Math.floor(diffInSeconds / (60 * 60 * 24))
+    
+    if (diffInDays === 0) return 'Today'
+    if (diffInDays === 1) return 'Yesterday'
+    if (diffInDays < 7) return `${diffInDays} Days Ago`
+    return date.toLocaleDateString()
+  } catch (e) { return 'Recently' }
+}
+
+onMounted(async () => {
+  try {
+    loading.value = true;
+    console.log("Kala: Starting Direct Story Discovery...");
+
+    // 1. Fetch Artists
+    try {
+      const allArtists = await getArtists();
+      if (Array.isArray(allArtists)) {
+        artists.value = allArtists.slice(0, 3).map(a => ({
+          id: a.id,
+          name: a.brand_name || a.full_name,
+          category: a.category || 'Artisan',
+          tagline: a.bio ? (a.bio.substring(0, 80) + '...') : 'Crafting heritage with passion.',
+          followers: a.follower_count || 0,
+          avatar: getImageUrl(a.profile_image_url || a.avatar)
+        }));
+      }
+    } catch (e) { console.error("Artist fetch fail", e); }
+
+    // 2. Direct Story Fetch (Bypassing API layer for absolute reliability)
+    try {
+      const response = await fetch('http://127.0.0.1:5000/api/social/posts');
+      const allPosts = await response.json();
+      
+      if (Array.isArray(allPosts)) {
+        console.log(`Kala Sync: Realizing ${allPosts.length} posts from server`);
+        // Force mapping for stories
+        stories.value = allPosts
+          .filter(p => (p.title || p.body) && p.cover_image_url)
+          .slice(0, 3)
+          .map(p => ({
+            id: p.id,
+            title: p.title || 'A Kala Story',
+            artist: p.artist_name || 'Kala Artisan',
+            date: formatRelativeTime(p.published_at),
+            cover: getImageUrl(p.cover_image_url)
+          }));
+      }
+    } catch (e) {
+      console.error("Story fetch fail", e);
+    }
+
+  } catch (err) {
+    console.error("Kala Total Overhaul Error:", err)
+  } finally {
+    loading.value = false;
+  }
+})
 </script>
 
 <style scoped>

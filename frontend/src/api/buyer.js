@@ -79,8 +79,7 @@ export const getProductDetails = async (id) => {
     image: p.image ? (p.image.startsWith('http') ? p.image : `http://localhost:5000${p.image}`) : null,
     gallery: (p.gallery || []).map(url => url.startsWith('http') ? url : `http://localhost:5000${url}`),
     description: p.description,
-    materials: p.materials,
-    dimensions: p.dimensions,
+    details: p.details,
     in_stock: p.in_stock
   }
 }

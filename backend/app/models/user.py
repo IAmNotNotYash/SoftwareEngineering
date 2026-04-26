@@ -71,6 +71,7 @@ class BuyerProfile(db.Model):
     user_id = db.Column(db.String(36), db.ForeignKey('users.id'), unique=True, nullable=False)
     full_name = db.Column(db.String(150), nullable=False)
     phone = db.Column(db.String(20), nullable=True)
+    profile_image_url = db.Column(db.String(500), nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
@@ -88,6 +89,7 @@ class BuyerProfile(db.Model):
             'email': self.user.email if self.user else None,
             'full_name': self.full_name,
             'phone': self.phone,
+            'profile_image_url': self.profile_image_url,
             'created_at': self.created_at.isoformat(),
             'stats': {
                 'followed_artists': followed_count,

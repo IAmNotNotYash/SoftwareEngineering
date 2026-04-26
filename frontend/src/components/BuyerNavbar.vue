@@ -7,22 +7,30 @@
         <span class="brand-text">Kala</span>
       </RouterLink>
     </div>
-    <div class="navbar-links">
+    <div class="navbar-links" v-if="authStore.user">
       <RouterLink to="/buyer/dashboard" active-class="router-link-active">Dashboard</RouterLink>
       <RouterLink to="/buyer/explore" active-class="router-link-active">Explore</RouterLink>
       <RouterLink to="/buyer/following" active-class="router-link-active">Following</RouterLink>
       <RouterLink to="/buyer/orders" active-class="router-link-active">Orders</RouterLink>
       <RouterLink to="/buyer/cart" active-class="router-link-active" class="cart-link">
-        Cart <span class="cart-count" v-if="cartTotalItems > 0">{{ cartTotalItems }}</span>
+        Cart <span class="cart-badge" v-if="cartTotalItems > 0">{{ cartTotalItems }}</span>
       </RouterLink>
-      <RouterLink to="/buyer/profile" active-class="router-link-active" class="profile-link">Profile</RouterLink>
+      <RouterLink to="/buyer/profile" active-class="router-link-active" class="profile-link">
+        <div v-if="authStore.user?.profile_image_url" class="nav-avatar" :style="{ backgroundImage: `url(${getImageUrl(authStore.user.profile_image_url)})` }"></div>
+        <div v-else class="nav-avatar-placeholder">{{ (authStore.user?.name || 'U').charAt(0) }}</div>
+        Profile
+      </RouterLink>
       <a href="#" class="logout" @click.prevent="logout">Logout</a>
+    </div>
+    <div class="navbar-links" v-else>
+      <RouterLink to="/auth/login" class="login-btn">Login</RouterLink>
+      <RouterLink to="/auth/register" class="signup-btn">Sign Up</RouterLink>
     </div>
   </nav>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useCartStore } from '../stores/cart.js'
 import { useAuthStore } from '../stores/auth.js'
 import { useRouter } from 'vue-router'
@@ -41,6 +49,15 @@ function logout() {
 }
 
 const hasLogo = ref(true)
+
+const getImageUrl = (url) => {
+  if (!url) return ''
+  return url.startsWith('http') ? url : `http://127.0.0.1:5000${url}`
+}
+
+onMounted(() => {
+  authStore.refreshUser()
+})
 </script>
 
 <style scoped>
@@ -147,20 +164,71 @@ const hasLogo = ref(true)
   color: #1a1a1a;
 }
 
-.cart-link {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.signup-btn {
+  background: #C4622D !important;
+  color: white !important;
+  padding: 8px 16px !important;
+  border-radius: 6px;
 }
 
-.cart-count {
+.signup-btn::after {
+  display: none;
+}
+
+.login-btn {
+  color: #666 !important;
+}
+
+.login-btn:hover {
+  color: #C4622D !important;
+}
+
+.profile-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-size: cover;
+  background-position: center;
+  border: 1px solid #e8e0d8;
+}
+
+.nav-avatar-placeholder {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #fdf2ed;
+  color: #C4622D;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  border: 1px solid #e8e0d8;
+}
+.cart-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: #C4622D;
-  color: white;
+  color: #fff;
   font-size: 10px;
   font-weight: 700;
-  padding: 3px 7px;
-  border-radius: 12px;
-  box-shadow: 0 2px 6px rgba(196, 98, 45, 0.3);
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 10px;
+  margin-left: 6px;
+  vertical-align: middle;
+  transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.cart-link:hover .cart-badge {
+  transform: scale(1.1);
 }
 </style>

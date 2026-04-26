@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost:5000/api/commerce'
+const API_URL = 'http://127.0.0.1:5000/api/commerce'
 
 function authHeaders() {
   const token = sessionStorage.getItem('token')

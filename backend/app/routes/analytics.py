@@ -8,7 +8,7 @@ from app import db
 from app.models.analytics import AnalyticsSnapshot, ArtistRevenueTrend, PlatformRevenueTrend
 from app.models.catalogue import Catalogue
 from app.models.commerce import Order, Product
-from app.models.social import Review
+from app.models.social import Review, Follow, Post, PostLike
 from app.models.user import ArtistProfile, BuyerProfile
 from app.utils.ai_summary import generate_artist_summaries, generate_platform_summary
 
@@ -67,11 +67,57 @@ def _artist_metrics(artist_id):
         .all()
     )
     recent = trends[-6:]
-    total_revenue = sum(float(t.revenue or 0) for t in trends)
-    total_orders = sum(int(t.orders or 0) for t in trends)
-    catalogue_views = sum(int(t.catalogue_views or 0) for t in trends)
-    engagements = [float(t.story_engagement_rate or 0) for t in trends if t.story_engagement_rate is not None]
-    avg_engagement_pct = (sum(engagements) / len(engagements) * 100) if engagements else 0.0
+    
+    # Use direct Order queries for real-time totals, excluding cancelled orders
+    # We use subtotal for artist's own revenue (excluding shipping)
+    total_revenue_val = db.session.query(db.func.sum(Order.subtotal))\
+        .filter(Order.artist_id == artist_id, Order.status != 'cancelled')\
+        .scalar() or 0
+    total_orders_val = Order.query\
+        .filter(Order.artist_id == artist_id, Order.status != 'cancelled')\
+        .count()
+        
+    total_revenue = float(total_revenue_val)
+    total_orders = int(total_orders_val)
+    
+    # Calculate combined live views (Catalogues + Standalone Stories)
+    from app.models.catalogue import CatalogueStats, CatalogueView
+    
+    # 1. Views from Catalogues (Sum of Stats)
+    cat_views = db.session.query(db.func.sum(CatalogueStats.total_views))\
+        .select_from(Catalogue)\
+        .outerjoin(CatalogueStats, Catalogue.id == CatalogueStats.catalogue_id)\
+        .filter(Catalogue.artist_id == artist_id)\
+        .scalar() or 0
+        
+    # 2. Views from Stories (Post views_count)
+    story_views = db.session.query(db.func.sum(Post.views_count))\
+        .filter(Post.artist_id == artist_id)\
+        .scalar() or 0
+        
+    # 3. Double check View Table rows if counts seem off (or just for robustness)
+    # This ensures even if Stats record was missing, we see there were rows
+    view_table_count = db.session.query(db.func.count(CatalogueView.id))\
+        .join(Catalogue, Catalogue.id == CatalogueView.catalogue_id)\
+        .filter(Catalogue.artist_id == artist_id)\
+        .scalar() or 0
+    
+    catalogue_views = max(int(cat_views), int(view_table_count)) + int(story_views)
+    
+    # Calculate live engagement from Posts and Likes
+    total_likes = db.session.query(db.func.count(PostLike.id))\
+        .join(Post, Post.id == PostLike.post_id)\
+        .filter(Post.artist_id == artist_id)\
+        .scalar() or 0
+    
+    follower_count = Follow.query.filter_by(artist_id=artist_id).count()
+    
+    # Engagement rate: Total Likes / Total Followers (expressed as percentage)
+    # If no followers yet, we use a count-based engagement or 0
+    if follower_count > 0:
+        avg_engagement_pct = (total_likes / follower_count) * 100
+    else:
+        avg_engagement_pct = total_likes * 5 # Small boost for new artists without followers
 
     product_ids = [p.id for p in Product.query.filter_by(artist_id=artist_id, is_deleted=False).all()]
     catalogue_ids = [c.id for c in Catalogue.query.filter_by(artist_id=artist_id).all()]
@@ -118,8 +164,15 @@ def _artist_metrics(artist_id):
 def _platform_metrics():
     trends = PlatformRevenueTrend.query.order_by(PlatformRevenueTrend.month.asc()).all()
     recent = trends[-6:]
-    total_revenue = float(db.session.query(db.func.sum(Order.total)).scalar() or 0)
-    total_orders = Order.query.count()
+    
+    # Use direct Order queries for real-time totals, excluding cancelled orders
+    total_revenue_val = db.session.query(db.func.sum(Order.total))\
+        .filter(Order.status != 'cancelled')\
+        .scalar() or 0
+    total_orders = Order.query.filter(Order.status != 'cancelled').count()
+    
+    total_revenue = float(total_revenue_val)
+    
     registered_artists = ArtistProfile.query.count()
     registered_buyers = BuyerProfile.query.count()
     pending_verifications = ArtistProfile.query.filter_by(verification_status="pending").count()
@@ -212,17 +265,35 @@ def get_artist_trend():
         .order_by(ArtistRevenueTrend.month.asc())
         .all()
     )
-    if not trends:
-        return jsonify(
-            [
-                {"month": "Jan", "revenue": 45000, "views": 120},
-                {"month": "Feb", "revenue": 52000, "views": 150},
-                {"month": "Mar", "revenue": 48000, "views": 140},
-                {"month": "Apr", "revenue": 61000, "views": 210},
-            ]
-        ), 200
+    
+    current_month = datetime.now().strftime("%Y-%m")
+    results = []
+    
+    # Process existing trends
+    for t in trends:
+        data = t.to_dict()
+        if t.month == current_month:
+            # Override with live data for the current month
+            metrics, _ = _artist_metrics(artist.id)
+            data['revenue'] = metrics['total_revenue']
+            data['orders'] = metrics['total_orders']
+            data['catalogue_views'] = metrics['catalogue_views']
+        results.append(data)
+    
+    # Check if we need to add the current month if it wasn't in trends
+    has_current = any(t['month'] == current_month for t in results)
+    
+    if not has_current:
+        # Fetch live totals for this month for the graph
+        metrics, _ = _artist_metrics(artist.id)
+        results.append({
+            "month": current_month,
+            "revenue": metrics["total_revenue"],
+            "orders": metrics["total_orders"],
+            "catalogue_views": metrics["catalogue_views"]
+        })
 
-    return jsonify([t.to_dict() for t in trends]), 200
+    return jsonify(results), 200
 
 
 @analytics_bp.route("/platform/trend", methods=["GET"])
@@ -234,14 +305,7 @@ def get_platform_trend():
 
     trends = PlatformRevenueTrend.query.order_by(PlatformRevenueTrend.month.asc()).all()
     if not trends:
-        return jsonify(
-            [
-                {"month": "Jan", "revenue": 1200000},
-                {"month": "Feb", "revenue": 1500000},
-                {"month": "Mar", "revenue": 1800000},
-                {"month": "Apr", "revenue": 2200000},
-            ]
-        ), 200
+        return jsonify([]), 200
     return jsonify([t.to_dict() for t in trends]), 200
 
 
